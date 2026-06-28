@@ -53,6 +53,7 @@ backend/src/assets/previews/
 !frontend/components.json
 !frontend/tsconfig.json
 !frontend/local-db.json
+!frontend/lib/db/migrations/**/*.json
 !backend/package.json
 !backend/voices.json
 !backend/package-lock.json
