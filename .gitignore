@@ -1,41 +1,67 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
+# Dependencies
+node_modules/
+.pnp
 .pnp.js
 .yarn/install-state.gz
 
-# testing
-/coverage
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
 
-# next.js
-/.next/
-/out/
+# Next.js build output
+.next/
+out/
+build/
+dist/
 
-# production
-/build
+# Databases & SQLite
+*.db
+*.db-journal
+*.sqlite3
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env
+# System & OS Files
+.DS_Store
+Thumbs.db
+*.pem
 
-# vercel
-.vercel
+# Temporary files & output previews
+backend/temp/
+backend/scratch/
+backend/src/assets/previews/
+*.mp3
+*.mp4
+*.part
+*.vtt
+*.wav
+*.aac
+*.m4a
+*.webm
+*.json3
+*.srt
+*.json
+!frontend/package.json
+!frontend/components.json
+!frontend/tsconfig.json
+!frontend/local-db.json
+!backend/package.json
+!backend/voices.json
+!backend/package-lock.json
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-.vscode
-
-# Docker
-postgres_data/
-.env*.local
+# IDEs & Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

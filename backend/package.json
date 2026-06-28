@@ -1,0 +1,35 @@
+{
+  "name": "audioverse-ai-backend",
+  "version": "1.0.0",
+  "description": "AudioVerse AI — Multilingual YouTube Audio Extraction Backend",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "echo \"Tests coming soon\" && exit 0"
+  },
+  "keywords": [
+    "youtube",
+    "audio",
+    "extraction",
+    "multilingual"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "better-sqlite3": "^12.10.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "edge-tts-universal": "^1.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "google-trends-api": "^4.9.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "puppeteer": "^25.1.0",
+    "uuid": "^11.1.0"
+  }
+}

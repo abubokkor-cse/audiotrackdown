@@ -1,0 +1,385 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Demo User",
+      "email": "user@example.com",
+      "passwordHash": "$2a$10$tZg/r5K/8lV1r1zD7/242eQ8u.zDk96dJ/GjF741tD146sR7Bv22.",
+      "role": "owner",
+      "createdAt": "2026-06-25T19:26:14.395Z",
+      "updatedAt": "2026-06-25T19:26:14.395Z",
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "name": "ABUBOKKOR",
+      "email": "abubokkor.cse@gmail.com",
+      "passwordHash": "$2b$10$8T4cegsuoa.gv6UMtfliMeJ00R1aO2XeRfOOI5pAnulJV69jPVOgq",
+      "role": "owner",
+      "createdAt": "2026-06-26T17:20:23.922Z",
+      "updatedAt": "2026-06-27T04:00:40.120Z",
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "name": null,
+      "email": "mrfack428@gmail.com",
+      "passwordHash": "$2b$10$9XRkZ2aCUcZ/me1s.b3T9OkR0IAFYC66O99ZmoB.kl3i4jS.9cNQi",
+      "role": "owner",
+      "createdAt": "2026-06-27T04:32:21.640Z",
+      "updatedAt": "2026-06-27T04:32:21.640Z",
+      "deletedAt": null
+    }
+  ],
+  "teams": [
+    {
+      "id": 1,
+      "name": "Demo's Team",
+      "createdAt": "2026-06-25T19:26:14.395Z",
+      "updatedAt": "2026-06-25T19:26:14.395Z",
+      "paddleCustomerId": null,
+      "paddleSubscriptionId": null,
+      "paddlePriceId": null,
+      "planName": "Free",
+      "subscriptionStatus": "active"
+    },
+    {
+      "id": 2,
+      "name": "abubokkor.cse@gmail.com's Team",
+      "createdAt": "2026-06-26T17:20:23.923Z",
+      "updatedAt": "2026-06-26T17:20:23.923Z",
+      "paddleCustomerId": "cus_admin",
+      "paddleSubscriptionId": "sub_admin_annual",
+      "paddlePriceId": "pri_annual",
+      "planName": "Pro Annual",
+      "subscriptionStatus": "active"
+    },
+    {
+      "id": 3,
+      "name": "mrfack428@gmail.com's Team",
+      "createdAt": "2026-06-27T04:32:21.643Z",
+      "updatedAt": "2026-06-27T04:32:21.643Z",
+      "paddleCustomerId": null,
+      "paddleSubscriptionId": null,
+      "paddlePriceId": null,
+      "planName": "Free",
+      "subscriptionStatus": "active"
+    }
+  ],
+  "teamMembers": [
+    {
+      "id": 1,
+      "userId": 1,
+      "teamId": 1,
+      "role": "owner",
+      "joinedAt": "2026-06-25T19:26:14.395Z"
+    },
+    {
+      "id": 2,
+      "userId": 2,
+      "teamId": 2,
+      "role": "owner",
+      "joinedAt": "2026-06-26T17:20:23.923Z"
+    },
+    {
+      "id": 3,
+      "userId": 3,
+      "teamId": 3,
+      "role": "owner",
+      "joinedAt": "2026-06-27T04:32:21.644Z"
+    }
+  ],
+  "downloadLogs": [
+    {
+      "id": 1,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:11:02.556Z",
+      "type": "audio",
+      "lang": "Original Audio"
+    },
+    {
+      "id": 2,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:12:33.484Z",
+      "type": "subtitle",
+      "lang": "HI_FB"
+    },
+    {
+      "id": 3,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:12:40.064Z",
+      "type": "subtitle",
+      "lang": "HI_FB"
+    },
+    {
+      "id": 4,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:12:44.571Z",
+      "type": "subtitle",
+      "lang": "HI_FB"
+    },
+    {
+      "id": 5,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:13:30.600Z",
+      "type": "subtitle",
+      "lang": "Bangla"
+    },
+    {
+      "id": 6,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:13:56.334Z",
+      "type": "subtitle",
+      "lang": "Bangla"
+    },
+    {
+      "id": 7,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:14:59.440Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 8,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:15:09.794Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 9,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:15:56.363Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 10,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:24:34.322Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 11,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:24:49.970Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 12,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:29:22.602Z",
+      "type": "audio",
+      "lang": "English (US) (Original)"
+    },
+    {
+      "id": 13,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:31:09.006Z",
+      "type": "audio",
+      "lang": "English (US) (Original)"
+    },
+    {
+      "id": 14,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:57:59.076Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 15,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:58:44.207Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 16,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:58:59.554Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 17,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T04:59:17.722Z",
+      "type": "subtitle",
+      "lang": "Bangla"
+    },
+    {
+      "id": 18,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-27T06:05:18.875Z",
+      "type": "audio",
+      "lang": "English"
+    },
+    {
+      "id": 19,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-28T02:06:21.952Z",
+      "type": "subtitle",
+      "lang": "English"
+    },
+    {
+      "id": 20,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-28T02:06:39.002Z",
+      "type": "subtitle",
+      "lang": "English"
+    }
+  ],
+  "activityLogs": [
+    {
+      "id": 1,
+      "teamId": 2,
+      "userId": 2,
+      "action": "CREATE_TEAM",
+      "timestamp": "2026-06-26T17:20:23.923Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 2,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_UP",
+      "timestamp": "2026-06-26T17:20:23.924Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 3,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-27T03:50:14.644Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 4,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-27T03:50:27.219Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 5,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-27T03:56:33.893Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 6,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-27T03:56:44.764Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 7,
+      "teamId": 2,
+      "userId": 2,
+      "action": "UPDATE_ACCOUNT",
+      "timestamp": "2026-06-27T04:00:40.121Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 8,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-27T04:31:19.960Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 9,
+      "teamId": 3,
+      "userId": 3,
+      "action": "CREATE_TEAM",
+      "timestamp": "2026-06-27T04:32:21.644Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 10,
+      "teamId": 3,
+      "userId": 3,
+      "action": "SIGN_UP",
+      "timestamp": "2026-06-27T04:32:21.644Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 11,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-27T04:33:27.359Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 12,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-27T04:33:34.431Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 13,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-27T04:33:56.607Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 14,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-27T06:03:46.927Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 15,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-27T06:04:48.410Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 16,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-28T02:49:43.158Z",
+      "ipAddress": ""
+    }
+  ],
+  "invitations": []
+}
