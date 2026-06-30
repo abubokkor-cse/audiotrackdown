@@ -32,15 +32,10 @@ function UserMenu() {
 
   if (!user) {
     return (
-      <>
-        <Link href="/pricing" className="text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors">
-          Pricing
-        </Link>
-        <Link href="/sign-up" className="btn-pro flex items-center justify-center gap-1.5 shadow-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 px-5 text-sm transition-all atd-btn-lift">
-          <Crown className="w-4 h-4" />
-          Sign Up
-        </Link>
-      </>
+      <Link href="/sign-up" className="btn-pro flex items-center justify-center gap-1.5 shadow-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 px-5 text-sm transition-all atd-btn-lift">
+        <Crown className="w-4 h-4" />
+        Sign Up
+      </Link>
     );
   }
 
