@@ -14,14 +14,14 @@ function generateSecret() {
 
 const secret = generateSecret();
 const label = 'admin';
-const issuer = 'AIVoiceDub';
+const issuer = 'audiotrackdown';
 const otpauthUrl = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
 
 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(otpauthUrl)}`;
 
 console.log(`
 ======================================================================
-  🔒  AIVoiceDub — Admin Two-Factor Authentication (2FA) Setup
+  🔒  audiotrackdown — Admin Two-Factor Authentication (2FA) Setup
 ======================================================================
 
 1. Open your authenticator app (Google Authenticator, Authy, etc.) on your phone.
