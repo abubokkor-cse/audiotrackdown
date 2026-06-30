@@ -1,11 +1,13 @@
 FROM node:20-slim
 
-# Install system dependencies (ffmpeg for TTS/audio merge, python3 for yt-dlp, curl to download yt-dlp)
+# Install system dependencies (build-essential for compiling native modules like better-sqlite3, ffmpeg, python3, curl)
 RUN apt-get update && apt-get install -y \
+    build-essential \
     ffmpeg \
     python3 \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Download and install the latest yt-dlp binary
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
