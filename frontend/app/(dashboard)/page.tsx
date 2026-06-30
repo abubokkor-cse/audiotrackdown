@@ -161,7 +161,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
 
   const isMp3Ready = ext === 'mp3' && type === 'download' && seconds === 0;
   const isSubReady = type === 'subtitle' && seconds === 0;
-  const isInlineReady = isMp3Ready || isSubReady;
+  const isTimerDone = isMp3Ready || isSubReady;
 
   let directStreamUrl = '';
   
@@ -175,7 +175,42 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     directStreamUrl = downloadUrl || '';
   }
 
+  // Backend URL is resolved and ready
+  const isUrlReady = !!directStreamUrl;
+  // Show inline button area only when timer is done
+  const isInlineReady = isTimerDone;
+
   const downloadBtnLabel = type === 'subtitle' ? 'Download Subtitles' : 'Download MP3';
+
+  // Auto-trigger download as soon as URL becomes available after timer ends
+  const autoTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (isTimerDone && isUrlReady && !autoTriggeredRef.current) {
+      autoTriggeredRef.current = true;
+      // Small delay so the user sees the button appear
+      const t = setTimeout(() => {
+        try {
+          const link = document.createElement('a');
+          link.href = directStreamUrl;
+          link.download = '';
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            if (document.body.contains(link)) document.body.removeChild(link);
+          }, 500);
+        } catch {}
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [isTimerDone, isUrlReady, directStreamUrl]);
+
+  // Reset auto-trigger ref when modal reopens
+  useEffect(() => {
+    if (!isOpen) {
+      autoTriggeredRef.current = false;
+    }
+  }, [isOpen]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -197,10 +232,15 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
               {type === 'extract' ? 'Extracting data... ' : type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
               Please wait <strong className="text-indigo-600 text-base">{seconds}s</strong>
             </span>
-          ) : (
+          ) : isUrlReady ? (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" />
-              {type === 'extract' ? 'Done! Loading your results...' : type === 'subtitle' ? 'Starting download...' : 'Opening download guide...'}
+              {type === 'extract' ? 'Done! Loading your results...' : 'Your file is ready!'}
+            </span>
+          ) : (
+            <span className="text-amber-600 font-semibold flex items-center gap-1.5">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Almost ready — preparing your file...
             </span>
           )}
         </div>
@@ -224,30 +264,41 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
         {/* Progress bar */}
         <div className="w-full bg-slate-100 h-1.5 rounded-full mb-4 overflow-hidden">
           <div
-            className="bg-indigo-600 h-full rounded-full transition-all duration-1000 ease-linear"
-            style={{ width: `${((totalSeconds - seconds) / totalSeconds) * 100}%` }}
+            className={`h-full rounded-full transition-all duration-1000 ease-linear ${isUrlReady ? 'bg-emerald-500' : 'bg-indigo-600'}`}
+            style={{ width: isTimerDone ? (isUrlReady ? '100%' : '92%') : `${((totalSeconds - seconds) / totalSeconds) * 100}%` }}
           />
         </div>
 
         {isInlineReady ? (
-          <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
-            <a
-              href={directStreamUrl || '#'}
-              download
-              onClick={(e) => { if (!directStreamUrl) e.preventDefault(); }}
-              className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 no-underline"
-            >
-              <Download className="w-4 h-4" />
-              {downloadBtnLabel}
-            </a>
-            <p className="text-[11px] text-gray-400 mt-1">
-              Tired of ads?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}
-                className="text-indigo-600 font-bold hover:underline">
-                Get Ad-Free Pro for $3.99/mo →
+          isUrlReady ? (
+            <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
+              <a
+                href={directStreamUrl}
+                download
+                className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 no-underline"
+              >
+                <Download className="w-4 h-4" />
+                {downloadBtnLabel}
               </a>
-            </p>
-          </div>
+              <p className="text-[11px] text-gray-400 mt-1">
+                Tired of ads?{' '}
+                <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}
+                  className="text-indigo-600 font-bold hover:underline">
+                  Get Ad-Free Pro for $3.99/mo →
+                </a>
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 animate-in fade-in duration-300">
+              <div className="w-full max-w-sm bg-slate-200 text-slate-500 font-bold py-3.5 px-8 rounded-2xl text-base flex items-center justify-center gap-2 cursor-wait">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Preparing file…
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Your MP3 is being transcoded. This usually takes a few seconds.
+              </p>
+            </div>
+          )
         ) : (
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs text-gray-400">{seconds > 0 ? `Please wait ${seconds}s…` : 'Almost done...'}</p>
@@ -358,7 +409,13 @@ function HomePageContent() {
     const { directUrl, downloadType, formatId, langName, ext } = track;
 
     if (downloadType === 'direct' && directUrl) {
-      window.open(directUrl, '_blank');
+      const link = document.createElement('a');
+      link.href = directUrl;
+      link.download = '';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
       return;
     }
 
@@ -378,8 +435,16 @@ function HomePageContent() {
       if (!res.ok || !data.success) throw new Error(data.error || 'Download preparation failed');
 
       mutate('/api/user/limits');
-      const finalUrl = `${window.location.origin}/download?id=${data.downloadId}&filename=${encodeURIComponent(data.filename)}`;
-      window.open(finalUrl, '_blank');
+
+      // Download in same tab via hidden anchor
+      const streamUrl = `${BACKEND_URL}/api/download/stream/${data.downloadId}`;
+      const link = document.createElement('a');
+      link.href = streamUrl;
+      link.download = data.filename || 'audio.mp3';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
     } catch (err: any) {
       setError(err.message);
     }

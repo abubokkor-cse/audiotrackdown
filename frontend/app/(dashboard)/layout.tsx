@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, Suspense, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, Settings, Crown, Menu, X, Globe, Music, FileText } from 'lucide-react';
+import { Home, LogOut, Settings, Crown, Menu, X, Globe, Music, FileText, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,6 +98,8 @@ function UserMenu() {
 function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { data: limits } = useSWR<any>('/api/user/limits', fetcher);
+  const isPro = limits?.isPro === true && limits?.planName !== 'Free';
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -106,52 +108,64 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link href="/" className="logo flex items-center gap-1.5">
+        <Link href={isPro ? "/dashboard" : "/"} className="logo flex items-center gap-1.5">
           <span className="text-xl font-bold tracking-tight text-slate-900" style={{ fontFamily: "var(--font-space-grotesk, 'Space Grotesk', sans-serif)" }}>
             audio<span className="text-indigo-600">track</span>down
           </span>
         </Link>
 
         {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-8">
-          <Link href="/" className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${pathname === '/' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
-            <Music className="w-4 h-4" />
-            Audio Extractor
-          </Link>
-          <Link href="/subtitles" className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${pathname === '/subtitles' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
-            <FileText className="w-4 h-4" />
-            Subtitles Downloader
-          </Link>
-          <a href="#how-it-works" className="text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors">
-            How It Works
-          </a>
-          <Link href="/pricing" className={`text-sm font-semibold transition-colors ${pathname === '/pricing' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
-            Pricing
-          </Link>
-          <Suspense fallback={<div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />}>
-            <UserMenu />
-          </Suspense>
-        </div>
+        {!isPro && (
+          <div className="hidden md:flex items-center gap-8">
+            <Link href="/" className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${pathname === '/' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
+              <Music className="w-4 h-4" />
+              Audio Extractor
+            </Link>
+            <Link href="/subtitles" className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${pathname === '/subtitles' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
+              <FileText className="w-4 h-4" />
+              Subtitles Downloader
+            </Link>
+            <a href="#how-it-works" className="text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors">
+              How It Works
+            </a>
+            <Link href="/pricing" className={`text-sm font-semibold transition-colors ${pathname === '/pricing' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
+              Pricing
+            </Link>
+            <Suspense fallback={<div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />}>
+              <UserMenu />
+            </Suspense>
+          </div>
+        )}
+
+        {isPro && (
+          <div className="flex items-center gap-3">
+            <Suspense fallback={<div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />}>
+              <UserMenu />
+            </Suspense>
+          </div>
+        )}
 
         {/* Mobile controls */}
-        <div className="md:hidden flex items-center gap-3">
-          <Suspense fallback={<div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />}>
-            <UserMenu />
-          </Suspense>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="rounded-xl hover:bg-gray-100"
-            aria-label="Toggle Navigation Menu"
-          >
-            {isMobileMenuOpen ? <X className="w-5 h-5 text-gray-600" /> : <Menu className="w-5 h-5 text-gray-600" />}
-          </Button>
-        </div>
+        {!isPro && (
+          <div className="md:hidden flex items-center gap-3">
+            <Suspense fallback={<div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />}>
+              <UserMenu />
+            </Suspense>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="rounded-xl hover:bg-gray-100"
+              aria-label="Toggle Navigation Menu"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5 text-gray-600" /> : <Menu className="w-5 h-5 text-gray-600" />}
+            </Button>
+          </div>
+        )}
       </nav>
 
       {/* Mobile Drawer */}
-      {isMobileMenuOpen && (
+      {!isPro && isMobileMenuOpen && (
         <div className="md:hidden border-b border-gray-100 bg-white/95 backdrop-blur-md px-6 py-6 space-y-4 animate-in fade-in slide-in-from-top-3 duration-200">
           <Link href="/" className={`flex items-center gap-2 text-base font-semibold py-2 border-b border-gray-50 ${pathname === '/' ? 'text-indigo-600' : 'text-gray-700'}`}>
             <Music className="w-4.5 h-4.5 text-gray-400" />
@@ -175,6 +189,13 @@ function Header() {
 
 function Footer() {
   const currentYear = new Date().getFullYear();
+  const pathname = usePathname();
+  const { data: limits } = useSWR<any>('/api/user/limits', fetcher);
+  const isPro = limits?.isPro === true && limits?.planName !== 'Free';
+
+  if (isPro || pathname.startsWith('/dashboard')) {
+    return null;
+  }
 
   return (
     <footer className="footer bg-slate-50 border-t border-gray-100 py-12 lg:py-16">
@@ -205,7 +226,7 @@ function Footer() {
               </span>
             </Link>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Extract high-quality audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly. 
+              Extract high-quality audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly.
               Free, fast, and mobile-optimized.
             </p>
           </div>
@@ -276,6 +297,33 @@ function Footer() {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: limits } = useSWR<any>('/api/user/limits', fetcher);
+  const isPro = limits?.isPro === true && limits?.planName !== 'Free';
+
+  useEffect(() => {
+    if (isPro) {
+      const publicPaths = ['/', '/subtitles', '/pricing'];
+      if (publicPaths.includes(pathname)) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [isPro, pathname, router]);
+
+  // Prevent flash of public content for logged in Pro users
+  const isPublicPath = ['/', '/subtitles', '/pricing'].includes(pathname);
+  if (isPro && isPublicPath) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="animate-spin h-8 w-8 text-indigo-600" />
+          <p className="text-sm font-semibold text-gray-500">Redirecting to Dashboard…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="atd min-h-screen flex flex-col bg-white">
       <Header />
