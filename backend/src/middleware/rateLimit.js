@@ -8,7 +8,7 @@ const config = require('../config');
 // General API rate limit: 100 requests per 15 minutes
 const generalLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: 99999999, // Disabled / High limit
+  max: config.nodeEnv === 'development' ? 999999 : config.rateLimit.maxRequests * 2,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -17,10 +17,10 @@ const generalLimiter = rateLimit({
   },
 });
 
-// Extraction-specific rate limit
+// Extraction-specific rate limit: 50 per 15 minutes (more expensive operation)
 const extractionLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: 99999999, // Disabled / High limit
+  max: config.nodeEnv === 'development' ? 999999 : config.rateLimit.maxRequests,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -29,10 +29,10 @@ const extractionLimiter = rateLimit({
   },
 });
 
-// Download rate limit
+// Download rate limit: 200 per 15 minutes
 const downloadLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: 99999999, // Disabled / High limit
+  max: config.nodeEnv === 'development' ? 999999 : config.rateLimit.maxRequests * 4,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
