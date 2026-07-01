@@ -3,8 +3,13 @@ import { users, teams, teamMembers } from './schema';
 import { hashPassword } from '@/lib/auth/session';
 
 async function seed() {
-  const email = 'test@test.com';
-  const password = 'admin123';
+  // Clean existing data first
+  await db.delete(teamMembers);
+  await db.delete(teams);
+  await db.delete(users);
+
+  const email = process.env.SEED_EMAIL || 'admin@example.com';
+  const password = process.env.SEED_PASSWORD || 'secure-password-placeholder';
   const passwordHash = await hashPassword(password);
 
   const [user] = await db
