@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', (req, res) => {
   res.json({
     status: 'healthy',
-    service: 'AudioVerse AI Backend',
+    service: 'audiotrackdown Backend',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
   });

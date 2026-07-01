@@ -54,7 +54,7 @@ app.use((err, req, res, _next) => {
 // ── Start server ──────────────────────────────────────────────────────
 app.listen(config.port, () => {
   console.log('\n' + '═'.repeat(60));
-  console.log('  🎵  AudioVerse AI — Backend Server');
+  console.log('  🎵  audiotrackdown — Backend Server');
   console.log('═'.repeat(60));
   console.log(`  🚀  Running on: http://localhost:${config.port}`);
   console.log(`  🌍  Environment: ${config.nodeEnv}`);
