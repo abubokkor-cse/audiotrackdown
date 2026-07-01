@@ -115,6 +115,59 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     return () => clearInterval(interval);
   }, [isOpen, type]);
 
+  const isMp3Ready = ext === 'mp3' && type === 'download' && seconds === 0;
+  const isSubReady = type === 'subtitle' && seconds === 0;
+  const isTimerDone = isMp3Ready || isSubReady;
+
+  let directStreamUrl = '';
+  
+  if (isMp3Ready && downloadUrl) {
+    try {
+      const u = new URL(downloadUrl, window.location.origin);
+      const dlId = u.searchParams.get('id');
+      if (dlId) directStreamUrl = `/api/download/stream/${dlId}`;
+    } catch {}
+  } else if (isSubReady) {
+    directStreamUrl = downloadUrl || '';
+  }
+
+  // Backend URL is resolved and ready
+  const isUrlReady = !!directStreamUrl;
+  // Show inline button area only when timer is done
+  const isInlineReady = isTimerDone;
+
+  const downloadBtnLabel = type === 'subtitle' ? 'Download Subtitles' : 'Download MP3';
+
+  // Auto-trigger download as soon as URL becomes available after timer ends
+  const autoTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (isTimerDone && isUrlReady && !autoTriggeredRef.current) {
+      autoTriggeredRef.current = true;
+      // Small delay so the user sees the button appear
+      const t = setTimeout(() => {
+        try {
+          const link = document.createElement('a');
+          link.href = directStreamUrl;
+          link.download = '';
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            if (document.body.contains(link)) document.body.removeChild(link);
+          }, 500);
+        } catch {}
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [isTimerDone, isUrlReady, directStreamUrl]);
+
+  // Reset auto-trigger ref when modal reopens
+  useEffect(() => {
+    if (!isOpen) {
+      autoTriggeredRef.current = false;
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   if (guidePhase && type === 'download') {
@@ -158,59 +211,6 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
       </div>
     );
   }
-
-  const isMp3Ready = ext === 'mp3' && type === 'download' && seconds === 0;
-  const isSubReady = type === 'subtitle' && seconds === 0;
-  const isTimerDone = isMp3Ready || isSubReady;
-
-  let directStreamUrl = '';
-  
-  if (isMp3Ready && downloadUrl) {
-    try {
-      const u = new URL(downloadUrl, window.location.origin);
-      const dlId = u.searchParams.get('id');
-      if (dlId) directStreamUrl = `${BACKEND_URL}/api/download/stream/${dlId}`;
-    } catch {}
-  } else if (isSubReady) {
-    directStreamUrl = downloadUrl || '';
-  }
-
-  // Backend URL is resolved and ready
-  const isUrlReady = !!directStreamUrl;
-  // Show inline button area only when timer is done
-  const isInlineReady = isTimerDone;
-
-  const downloadBtnLabel = type === 'subtitle' ? 'Download Subtitles' : 'Download MP3';
-
-  // Auto-trigger download as soon as URL becomes available after timer ends
-  const autoTriggeredRef = useRef(false);
-  useEffect(() => {
-    if (isTimerDone && isUrlReady && !autoTriggeredRef.current) {
-      autoTriggeredRef.current = true;
-      // Small delay so the user sees the button appear
-      const t = setTimeout(() => {
-        try {
-          const link = document.createElement('a');
-          link.href = directStreamUrl;
-          link.download = '';
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            if (document.body.contains(link)) document.body.removeChild(link);
-          }, 500);
-        } catch {}
-      }, 400);
-      return () => clearTimeout(t);
-    }
-  }, [isTimerDone, isUrlReady, directStreamUrl]);
-
-  // Reset auto-trigger ref when modal reopens
-  useEffect(() => {
-    if (!isOpen) {
-      autoTriggeredRef.current = false;
-    }
-  }, [isOpen]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -437,7 +437,7 @@ function HomePageContent() {
       mutate('/api/user/limits');
 
       // Download in same tab via hidden anchor
-      const streamUrl = `${BACKEND_URL}/api/download/stream/${data.downloadId}`;
+      const streamUrl = `/api/download/stream/${data.downloadId}`;
       const link = document.createElement('a');
       link.href = streamUrl;
       link.download = data.filename || 'audio.mp3';
@@ -503,7 +503,7 @@ function HomePageContent() {
       targetUrl = fmtObj?.url || sub.formats?.[0]?.url || '';
     }
     
-    const downloadUrl = `${BACKEND_URL}/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
+    const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
     
     if (isFree) {
       setAdDownloadUrl(downloadUrl);
@@ -511,7 +511,13 @@ function HomePageContent() {
       setAdModalType('subtitle');
       setAdModalOpen(true);
     } else {
-      window.open(downloadUrl, '_blank');
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = '';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
     }
   };
 

@@ -169,7 +169,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     try {
       const u = new URL(downloadUrl, window.location.origin);
       const dlId = u.searchParams.get('id');
-      if (dlId) directStreamUrl = `${BACKEND_URL}/api/download/stream/${dlId}`;
+      if (dlId) directStreamUrl = `/api/download/stream/${dlId}`;
     } catch {}
   } else if (isSubReady) {
     directStreamUrl = downloadUrl || '';
@@ -438,7 +438,7 @@ function SubtitlesPageContent() {
       targetUrl = fmtObj?.url || sub.formats?.[0]?.url || '';
     }
     
-    const downloadUrl = `${BACKEND_URL}/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
+    const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
     
     if (isFree) {
       setAdDownloadUrl(downloadUrl);
@@ -446,7 +446,13 @@ function SubtitlesPageContent() {
       setAdModalType('subtitle');
       setAdModalOpen(true);
     } else {
-      window.open(downloadUrl, '_blank');
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = '';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
     }
   };
 

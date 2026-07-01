@@ -41,7 +41,7 @@ function DownloadPageContent() {
   const triggerDownload = () => {
     if (isDirect) return;
     setDownloaded(true);
-    const downloadUrl = `${BACKEND_URL}/api/download/stream/${downloadId}`;
+    const downloadUrl = `/api/download/stream/${downloadId}`;
     
     const link = document.createElement('a');
     link.href = downloadUrl;
@@ -142,7 +142,7 @@ function DownloadPageContent() {
                 <p className="text-xs text-gray-400">
                   If the download did not start automatically,{' '}
                   <a
-                    href={`${BACKEND_URL}/api/download/stream/${downloadId}`}
+                    href={`/api/download/stream/${downloadId}`}
                     download
                     className="text-indigo-600 font-semibold hover:underline"
                   >

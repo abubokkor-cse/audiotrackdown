@@ -196,7 +196,7 @@ function DashboardContent() {
         mutate('/api/user/limits');
 
         // Same-tab download via hidden anchor
-        const streamUrl = `${BACKEND_URL}/api/download/stream/${data.downloadId}`;
+        const streamUrl = `/api/download/stream/${data.downloadId}`;
         const link = document.createElement('a');
         link.href = streamUrl;
         link.download = data.filename || 'audio.mp3';
@@ -221,7 +221,7 @@ function DashboardContent() {
     const videoId = result.video?.id;
     const isYT = subUrl.includes('youtube') || subUrl.includes('youtu.be') || initialUrl.includes('youtube');
     let targetUrl = isYT ? `https://www.youtube.com/watch?v=${videoId}` : sub.formats?.[0]?.url || '';
-    return `${BACKEND_URL}/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video?.title || '')}`;
+    return `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video?.title || '')}`;
   };
 
   const subtitleLangs = result?.subtitles ? Object.keys(result.subtitles) : [];

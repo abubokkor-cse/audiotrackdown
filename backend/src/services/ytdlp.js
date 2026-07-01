@@ -214,7 +214,7 @@ function extractAudioTracks(rawUrl) {
         if (errMsg.includes('geo') || errMsg.includes('country')) {
           return reject(new Error('This video is not available in your region.'));
         }
-        return reject(new Error('Failed to extract video information. Please check the URL.'));
+        return reject(new Error(`Failed to extract video information: ${errMsg}`));
       }
 
       try {
