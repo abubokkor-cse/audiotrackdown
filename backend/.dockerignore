@@ -1,0 +1,10 @@
+# Don't copy local env files into the Docker image — Railway injects its own
+.env
+.env.*
+
+# Dev/test artifacts
+node_modules
+scratch
+temp
+database.db
+*.log

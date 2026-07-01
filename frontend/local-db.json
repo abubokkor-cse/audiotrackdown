@@ -265,6 +265,54 @@
       "createdAt": "2026-06-30T15:38:12.041Z",
       "type": "audio",
       "lang": "Arabic"
+    },
+    {
+      "id": 23,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-30T16:50:16.339Z",
+      "type": "audio",
+      "lang": "Hindi"
+    },
+    {
+      "id": 24,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-30T17:02:23.505Z",
+      "type": "audio",
+      "lang": "Bangla"
+    },
+    {
+      "id": 25,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-30T17:02:40.874Z",
+      "type": "audio",
+      "lang": "Bangla"
+    },
+    {
+      "id": 26,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-30T17:02:59.594Z",
+      "type": "audio",
+      "lang": "Bangla"
+    },
+    {
+      "id": 27,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-30T17:03:17.371Z",
+      "type": "subtitle",
+      "lang": "Bangla"
+    },
+    {
+      "id": 28,
+      "userId": 2,
+      "ipAddress": "::1",
+      "createdAt": "2026-06-30T17:14:25.636Z",
+      "type": "audio",
+      "lang": "Bangla"
     }
   ],
   "activityLogs": [
@@ -394,6 +442,38 @@
       "userId": 2,
       "action": "SIGN_OUT",
       "timestamp": "2026-06-28T02:49:43.158Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 17,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-30T16:43:40.894Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 18,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-30T17:23:40.704Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 19,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-06-30T17:24:06.372Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 20,
+      "teamId": 2,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-06-30T17:24:52.817Z",
       "ipAddress": ""
     }
   ],

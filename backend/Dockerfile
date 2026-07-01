@@ -20,13 +20,13 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm install --only=production
+RUN npm install --omit=dev
 
 # Copy backend source files
 COPY . .
 
-# Expose port (Render/Railway will map this automatically)
-EXPOSE 4000
+# Railway injects PORT dynamically at runtime
+EXPOSE ${PORT:-4000}
 
 # Start Express server
 CMD ["npm", "start"]

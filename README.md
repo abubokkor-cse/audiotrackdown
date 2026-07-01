@@ -62,8 +62,9 @@ The backend includes a `Dockerfile` pre-configured to install system dependencie
 
 1. **Connect GitHub**: Connect this repository to a new project in Railway.
 2. **Root Directory / Build Settings**: In the service settings under *Builder*, specify the root directory as `backend/` or ensure Railway uses the `backend/Dockerfile` to build.
-3. **Environment Variables**: Add the backend environment variables in Railway (e.g. `GEMINI_API_KEY`, `GROQ_API_KEY`, `ROTATING_PROXIES`, `FIREBASE_PROJECT_ID`, `ADMIN_PASSWORD`, etc.).
-4. **Expose Port**: Railway automatically exposes the port defined in the Dockerfile (`4000`).
+3. **Environment Variables**: Add the backend environment variables in Railway: `GEMINI_API_KEY`, `BACKEND_SECRET`, `DATABASE_PATH`, `NODE_ENV`, `PORT`, and `FRONTEND_URL`.
+4. **Volume**: Mount a persistent volume at `/data` and set `DATABASE_PATH=/data/database.db` to persist SQLite data across deploys.
+5. **Expose Port**: Railway automatically exposes the port defined in the Dockerfile (`4000`).
 
 ---
 
