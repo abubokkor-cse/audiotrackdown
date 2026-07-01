@@ -124,7 +124,7 @@ function extractAudioTracks(rawUrl) {
 
     const isYouTubeUrl = url.includes('youtube.com') || url.includes('youtu.be');
 
-    const buildArgs = ({ useCookies = false, useImpersonate = true } = {}) => {
+    const buildArgs = ({ useCookies = false, useImpersonate = true, playerClient = 'web' } = {}) => {
       const args = [
         '--no-update',
         '--no-warnings',
@@ -137,6 +137,7 @@ function extractAudioTracks(rawUrl) {
           args.push('--impersonate', 'Chrome-136');
         }
         args.push(
+          '--extractor-args', `youtube:player_client=${playerClient}`,
           '--write-subs',
           '--write-auto-subs',
           '--sub-langs', 'all'
@@ -182,10 +183,14 @@ function extractAudioTracks(rawUrl) {
     });
 
     const strategies = [
-      { useCookies: true, useImpersonate: true, label: 'cookies+impersonate' },
-      { useCookies: true, useImpersonate: false, label: 'cookies-only' },
-      { useCookies: false, useImpersonate: true, label: 'impersonate' },
-      { useCookies: false, useImpersonate: false, label: 'plain' },
+      // 📱 Try mobile/embedded clients first (highly effective on cloud IPs)
+      { useCookies: false, useImpersonate: false, playerClient: 'android', label: 'android' },
+      { useCookies: false, useImpersonate: false, playerClient: 'ios', label: 'ios' },
+      { useCookies: false, useImpersonate: false, playerClient: 'tv', label: 'tv' },
+      // 💻 Try desktop clients as fallback
+      { useCookies: false, useImpersonate: true, playerClient: 'web_safari', label: 'safari-impersonate' },
+      { useCookies: false, useImpersonate: true, playerClient: 'web', label: 'chrome-impersonate' },
+      { useCookies: true, useImpersonate: true, playerClient: 'web', label: 'cookies+chrome' },
     ];
 
     (async () => {
@@ -268,9 +273,16 @@ function processExtractedInfo(info) {
   };
 
   // ── Extract and group audio formats by language ──
-  const audioFormats = allFormats.filter(
+  let audioFormats = allFormats.filter(
     (f) => f.acodec !== 'none' && f.vcodec === 'none'
   );
+
+  // Fallback: if no audio-only formats are found (common with android client), use combined formats
+  if (audioFormats.length === 0) {
+    audioFormats = allFormats.filter(
+      (f) => f.acodec !== 'none' && f.vcodec !== 'none'
+    );
+  }
 
   // Collect ALL formats per language
   const langFormats = {};
@@ -436,7 +448,7 @@ function getStreamUrl(rawUrl, formatId) {
   return new Promise((resolve, reject) => {
     const isYouTubeUrl = url.includes('youtube.com') || url.includes('youtu.be');
 
-    const buildArgs = ({ useCookies = false, useImpersonate = true } = {}) => {
+    const buildArgs = ({ useCookies = false, useImpersonate = true, playerClient = 'web' } = {}) => {
       const args = [
         '--no-update',
         '--no-warnings',
@@ -448,10 +460,12 @@ function getStreamUrl(rawUrl, formatId) {
       if (isYouTubeUrl) {
         if (useImpersonate) {
           args.push(
-            '--impersonate', 'Chrome-136',
-            '--extractor-args', 'youtube:player_client=web'
+            '--impersonate', 'Chrome-136'
           );
         }
+        args.push(
+          '--extractor-args', `youtube:player_client=${playerClient}`
+        );
       }
 
       if (useCookies) {
@@ -495,10 +509,14 @@ function getStreamUrl(rawUrl, formatId) {
     });
 
     const strategies = [
-      { useCookies: true, useImpersonate: true, label: 'cookies+impersonate' },
-      { useCookies: true, useImpersonate: false, label: 'cookies-only' },
-      { useCookies: false, useImpersonate: true, label: 'impersonate' },
-      { useCookies: false, useImpersonate: false, label: 'plain' },
+      // 📱 Try mobile/embedded clients first (highly effective on cloud IPs)
+      { useCookies: false, useImpersonate: false, playerClient: 'android', label: 'android' },
+      { useCookies: false, useImpersonate: false, playerClient: 'ios', label: 'ios' },
+      { useCookies: false, useImpersonate: false, playerClient: 'tv', label: 'tv' },
+      // 💻 Try desktop clients as fallback
+      { useCookies: false, useImpersonate: true, playerClient: 'web_safari', label: 'safari-impersonate' },
+      { useCookies: false, useImpersonate: true, playerClient: 'web', label: 'chrome-impersonate' },
+      { useCookies: true, useImpersonate: true, playerClient: 'web', label: 'cookies+chrome' },
     ];
 
     (async () => {
