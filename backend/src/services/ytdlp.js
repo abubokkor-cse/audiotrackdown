@@ -229,6 +229,14 @@ function extractAudioTracks(rawUrl) {
 
       try {
         const info = JSON.parse(stdout);
+
+        // Debug: log raw format breakdown to diagnose multi-language issues
+        const allFmts = info.formats || [];
+        const audioOnly = allFmts.filter(f => f.acodec !== 'none' && f.vcodec === 'none');
+        const combined = allFmts.filter(f => f.acodec !== 'none' && f.vcodec !== 'none');
+        const langs = [...new Set(audioOnly.map(f => f.language || 'default'))];
+        console.log(`[ytdlp] Raw formats: ${allFmts.length} total, ${audioOnly.length} audio-only, ${combined.length} combined, languages: [${langs.join(', ')}]`);
+
         const result = processExtractedInfo(info);
 
         // Cache the result — only cache multi-track results so degraded fallbacks don't pollute
