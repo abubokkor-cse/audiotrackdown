@@ -19,7 +19,8 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
     && chmod a+rx /usr/local/bin/yt-dlp
 
 # Install Deno as the JS challenges solver for yt-dlp to extract all formats and multi-language dubbed audios
-COPY --from=denoland/deno:bin-latest /deno /usr/local/bin/deno
+COPY --from=ghcr.io/denoland/deno:bin /deno /usr/local/bin/deno
+
 
 
 # Set working directory
