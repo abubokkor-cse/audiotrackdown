@@ -99,20 +99,31 @@ router.get('/verbose-test', (req, res) => {
     const watchUrl = req.query.url || 'https://www.youtube.com/watch?v=1FHOMM5As0w';
     const cmd = `"${YTDLP_BIN}" -v --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
     
-    let stdout = '';
-    let stderr = '';
-    try {
-      stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
-    } catch (e) {
-      stdout = e.stdout?.toString() || '';
-      stderr = e.stderr?.toString() || e.message;
-    }
+    const { spawnSync } = require('child_process');
+    const parts = [
+      '-v',
+      '--no-update',
+      '--no-warnings',
+      '--dump-json',
+      '--no-download',
+      '--no-playlist',
+      '--no-cache-dir',
+      '--impersonate',
+      BEST_CHROME_TARGET,
+      '--extractor-args',
+      'youtube:player_client=all',
+      '--proxy',
+      actualProxy,
+      watchUrl
+    ];
+    
+    const result = spawnSync(YTDLP_BIN, parts, { encoding: 'utf8', timeout: 60000 });
     
     res.json({
       success: true,
-      cmd: cmd.replace(proxy, '***').replace(actualProxy, '***'),
-      stdoutLength: stdout.length,
-      stderr: stderr.split('\n').slice(0, 50) // Return first 50 lines of logs
+      cmd: `"${YTDLP_BIN}" ${parts.join(' ')}`.replace(proxy, '***').replace(actualProxy, '***'),
+      stdoutLength: result.stdout?.length || 0,
+      stderr: (result.stderr || '').split('\n').slice(0, 100) // Return first 100 lines of logs
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
