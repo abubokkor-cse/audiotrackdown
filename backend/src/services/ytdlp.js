@@ -190,7 +190,9 @@ function extractAudioTracks(rawUrl) {
     });
 
     const strategies = [
-      // 💻 Try ALL clients with Chrome user-agent (aggregates multi-language audio from all clients)
+      // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
+      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
+      // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked (returns at least the default/original track)
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
@@ -525,7 +527,9 @@ function getStreamUrl(rawUrl, formatId) {
     });
 
     const strategies = [
-      // 💻 Try ALL clients with Chrome user-agent (aggregates multi-language audio)
+      // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
+      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
+      // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },

@@ -5,8 +5,13 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     ffmpeg \
     python3 \
+    python3-pip \
+    python3-venv \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install curl_cffi to allow yt-dlp to impersonate browser TLS signatures and bypass YouTube's bot-detection fingerprinting
+RUN pip3 install --break-system-packages curl_cffi
 
 
 # Download and install the latest yt-dlp binary
