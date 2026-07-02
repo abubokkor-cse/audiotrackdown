@@ -18,6 +18,9 @@ RUN pip3 install --break-system-packages curl_cffi pysocks
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
+# Install Deno as the JS challenges solver for yt-dlp to extract all formats and multi-language dubbed audios
+COPY --from=denoland/deno:bin-latest /deno /usr/local/bin/deno
+
 
 # Set working directory
 WORKDIR /usr/src/app
