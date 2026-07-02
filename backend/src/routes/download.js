@@ -124,6 +124,7 @@ router.get('/stream/:id', (req, res) => {
         '--no-update',
         '--no-warnings',
         '--no-playlist',
+        '--no-cache-dir',
       ];
 
       // Reuse the EXACT strategy that succeeded during getStreamUrl

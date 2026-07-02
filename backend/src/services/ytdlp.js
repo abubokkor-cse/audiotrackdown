@@ -137,6 +137,7 @@ function extractAudioTracks(rawUrl) {
         '--dump-json',
         '--no-download',
         '--no-playlist',
+        '--no-cache-dir',
       ];
       if (isYouTubeUrl) {
         if (useImpersonate) {
@@ -485,6 +486,7 @@ function getStreamUrl(rawUrl, formatId) {
         '--dump-json',
         '--no-download',
         '--no-playlist',
+        '--no-cache-dir',
       ];
 
       if (isYouTubeUrl) {
