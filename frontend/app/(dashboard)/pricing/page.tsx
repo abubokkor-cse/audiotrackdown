@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
+import { getUser } from '@/lib/db/queries';
 import PricingClient from './pricing-client';
 
 export const metadata: Metadata = {
@@ -8,14 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default async function PricingPage() {
-  const [user, team] = await Promise.all([
-    getUser(),
-    getTeamForUser(),
-  ]);
+  const user = await getUser();
 
   return (
     <main className="bg-white min-h-[calc(100vh-64px)]">
-      <PricingClient user={user} team={team} />
+      <PricingClient user={user} />
     </main>
   );
 }

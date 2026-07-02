@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPaddleInstance } from '@/lib/payments/paddle';
 import { EventName } from '@paddle/paddle-node-sdk';
 import { db } from '@/lib/db/drizzle';
-import { teams } from '@/lib/db/schema';
+import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       const status = subscription.status;
       const priceId = subscription.items[0]?.price?.id || '';
       const customData = subscription.customData as Record<string, any> | undefined;
-      const teamId = customData?.teamId ? Number(customData.teamId) : null;
+      const userId = customData?.userId ? Number(customData.userId) : null;
 
       let planName = 'Pro';
       if (priceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL) {
@@ -45,10 +45,10 @@ export async function POST(request: NextRequest) {
         planName = 'Pro Monthly';
       }
 
-      if (teamId) {
+      if (userId) {
         if (status === 'active' || status === 'trialing') {
           await db
-            .update(teams)
+            .update(users)
             .set({
               paddleCustomerId: customerId,
               paddleSubscriptionId: subscriptionId,
@@ -57,11 +57,11 @@ export async function POST(request: NextRequest) {
               subscriptionStatus: status,
               updatedAt: new Date(),
             })
-            .where(eq(teams.id, teamId));
+            .where(eq(users.id, userId));
         } else {
           // If paused, canceled, past_due, etc.
           await db
-            .update(teams)
+            .update(users)
             .set({
               paddleSubscriptionId: subscriptionId,
               paddlePriceId: priceId,
@@ -69,10 +69,10 @@ export async function POST(request: NextRequest) {
               subscriptionStatus: status,
               updatedAt: new Date(),
             })
-            .where(eq(teams.id, teamId));
+            .where(eq(users.id, userId));
         }
       } else {
-        console.warn(`[Paddle Webhook] No teamId found in customData for subscription: ${subscriptionId}`);
+        console.warn(`[Paddle Webhook] No userId found in customData for subscription: ${subscriptionId}`);
       }
     }
 

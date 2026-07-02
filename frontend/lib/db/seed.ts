@@ -1,11 +1,9 @@
 import { db } from './drizzle';
-import { users, teams, teamMembers } from './schema';
+import { users } from './schema';
 import { hashPassword } from '@/lib/auth/session';
 
 async function seed() {
   // Clean existing data first
-  await db.delete(teamMembers);
-  await db.delete(teams);
   await db.delete(users);
 
   const email = process.env.SEED_EMAIL || 'admin@example.com';
@@ -24,19 +22,6 @@ async function seed() {
     .returning();
 
   console.log('Initial user created.');
-
-  const [team] = await db
-    .insert(teams)
-    .values({
-      name: 'Test Team',
-    })
-    .returning();
-
-  await db.insert(teamMembers).values({
-    teamId: team.id,
-    userId: user.id,
-    role: 'owner',
-  });
 }
 
 seed()

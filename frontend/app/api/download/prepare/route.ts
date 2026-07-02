@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, getTeamForUser, getDailyDownloadCount, logDownload } from '@/lib/db/queries';
+import { getUser, getDailyDownloadCount, logDownload } from '@/lib/db/queries';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
 const BACKEND_SECRET = process.env.BACKEND_SECRET || 'shared-secret';
@@ -7,7 +7,6 @@ const BACKEND_SECRET = process.env.BACKEND_SECRET || 'shared-secret';
 export async function POST(request: NextRequest) {
   try {
     const user = await getUser();
-    const team = await getTeamForUser();
     const { url, formatId, langName, targetExt } = await request.json();
 
     if (!url || !formatId) {
@@ -16,8 +15,7 @@ export async function POST(request: NextRequest) {
 
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1';
 
-    const hasActiveSub = team?.subscriptionStatus === 'active' || team?.subscriptionStatus === 'trialing';
-
+    const hasActiveSub = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
 
     // Proxy download prepare to Express backend
     const res = await fetch(`${BACKEND_URL}/api/download/prepare`, {

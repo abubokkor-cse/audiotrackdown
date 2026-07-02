@@ -1,6 +1,6 @@
 import { desc, and, or, eq, isNull, gte, sql } from 'drizzle-orm';
 import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users, downloadLogs } from './schema';
+import { activityLogs, users, downloadLogs } from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
 import { jsonDb } from './jsonDb';
@@ -45,43 +45,44 @@ export async function getUser() {
   return user[0];
 }
 
-export async function getTeamByPaddleCustomerId(customerId: string) {
+export async function getUserByPaddleCustomerId(customerId: string) {
   if (isMock) {
-    const list = jsonDb.getTeams();
-    const team = list.find((t: any) => t.paddleCustomerId === customerId);
-    return team || null;
+    const list = jsonDb.getUsers();
+    const user = list.find((u: any) => u.paddleCustomerId === customerId);
+    return user || null;
   }
 
   const result = await db
     .select()
-    .from(teams)
-    .where(eq(teams.paddleCustomerId, customerId))
+    .from(users)
+    .where(eq(users.paddleCustomerId, customerId))
     .limit(1);
 
   return result.length > 0 ? result[0] : null;
 }
 
-export async function updateTeamSubscription(
-  teamId: number,
+export async function updateUserSubscription(
+  userId: number,
   subscriptionData: {
     paddleSubscriptionId: string | null;
     paddlePriceId: string | null;
     planName: string | null;
     subscriptionStatus: string | null;
+    paddleCustomerId?: string | null;
   }
 ) {
   if (isMock) {
-    jsonDb.updateTeam(teamId, subscriptionData);
+    jsonDb.updateUser(userId, subscriptionData);
     return;
   }
 
   await db
-    .update(teams)
+    .update(users)
     .set({
       ...subscriptionData,
       updatedAt: new Date()
     })
-    .where(eq(teams.id, teamId));
+    .where(eq(users.id, userId));
 }
 
 export async function getDailyDownloadCount(userId: number | null, ipAddress: string): Promise<number> {
@@ -199,26 +200,6 @@ export async function getDashboardStats(userId: number | null, ipAddress: string
   };
 }
 
-export async function getUserWithTeam(userId: number) {
-  if (isMock) {
-    const user = jsonDb.getUsers().find((u: any) => u.id === userId);
-    const member = jsonDb.getTeamMembers().find((m: any) => m.userId === userId);
-    return { user, teamId: member ? member.teamId : null };
-  }
-
-  const result = await db
-    .select({
-      user: users,
-      teamId: teamMembers.teamId
-    })
-    .from(users)
-    .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  return result[0];
-}
-
 export async function getActivityLogs() {
   const user = await getUser();
   if (!user) {
@@ -253,61 +234,4 @@ export async function getActivityLogs() {
     .where(eq(activityLogs.userId, user.id))
     .orderBy(desc(activityLogs.timestamp))
     .limit(10);
-}
-
-export async function getTeamForUser() {
-  const user = await getUser();
-  if (!user) {
-    return null;
-  }
-
-  if (isMock) {
-    const member = jsonDb.getTeamMembers().find((m: any) => m.userId === user.id);
-    if (!member) return null;
-    const team = jsonDb.getTeams().find((t: any) => t.id === member.teamId);
-    if (!team) return null;
-    const members = jsonDb.getTeamMembers()
-      .filter((m: any) => m.teamId === team.id)
-      .map((m: any) => {
-        const u = jsonDb.getUsers().find((x: any) => x.id === m.userId);
-        return {
-          ...m,
-          joinedAt: new Date(m.joinedAt),
-          user: {
-            id: u?.id,
-            name: u?.name,
-            email: u?.email,
-          }
-        };
-      });
-    return {
-      ...team,
-      createdAt: new Date(team.createdAt),
-      updatedAt: new Date(team.updatedAt),
-      teamMembers: members,
-    };
-  }
-
-  const result = await db.query.teamMembers.findFirst({
-    where: eq(teamMembers.userId, user.id),
-    with: {
-      team: {
-        with: {
-          teamMembers: {
-            with: {
-              user: {
-                columns: {
-                  id: true,
-                  name: true,
-                  email: true
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  });
-
-  return result?.team || null;
 }

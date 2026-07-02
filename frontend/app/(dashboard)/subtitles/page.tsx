@@ -52,31 +52,118 @@ interface AdModalProps {
   onTimerComplete: () => void;
   downloadUrl?: string;
   ext?: string;
+  isLoading?: boolean;
 }
 
-function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, ext }: AdModalProps) {
-  const totalSeconds = type === 'extract' ? 3 : 6;
+function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, ext, isLoading }: AdModalProps) {
+  const totalSeconds = type === 'extract' ? 0 : 6;
   const [seconds, setSeconds] = useState(totalSeconds);
+  const [elapsed, setElapsed] = useState(0);
+  const [adRotation, setAdRotation] = useState(0);
   const [guidePhase, setGuidePhase] = useState(false);
   const activeAd = AD_DETAILS[type === 'subtitle' ? 'download' : type as 'extract' | 'download'];
   const router = useRouter();
 
+  const bannerRef = useRef<HTMLDivElement>(null);
   const runRef = useRef({ onTimerComplete, onClose, downloadUrl, ext });
   runRef.current = { onTimerComplete, onClose, downloadUrl, ext };
 
   const hasOpenedRef = useRef(false);
 
+  // Auto close extraction modal when loading completes
+  useEffect(() => {
+    if (isOpen && type === 'extract' && !isLoading) {
+      onClose();
+    }
+  }, [isOpen, type, isLoading, onClose]);
+
+  // Track elapsed seconds during extraction
+  useEffect(() => {
+    if (!isOpen || type !== 'extract') {
+      setElapsed(0);
+      return;
+    }
+    setElapsed(0);
+    const interval = setInterval(() => {
+      setElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen, type]);
+
+  // Rotate 300x250 banner ad every 6 seconds inside modal to maximize CPM
+  useEffect(() => {
+    if (isOpen) {
+      setAdRotation(0);
+      const interval = setInterval(() => {
+        setAdRotation((prev) => prev + 1);
+      }, 6000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen]);
+
+  // Dynamically load Adsterra 300x250 Banner scripts inside ref container
+  useEffect(() => {
+    if (isOpen && bannerRef.current) {
+      bannerRef.current.innerHTML = '';
+
+      const confScript = document.createElement('script');
+      confScript.innerHTML = `
+        atOptions = {
+          'key' : '2b84ee378c9cb53ae6db891eb5f00e6a',
+          'format' : 'iframe',
+          'height' : 250,
+          'width' : 300,
+          'params' : {}
+        };
+      `;
+
+      const invokeScript = document.createElement('script');
+      invokeScript.src = 'https://www.highperformanceformat.com/2b84ee378c9cb53ae6db891eb5f00e6a/invoke.js';
+      invokeScript.async = true;
+
+      bannerRef.current.appendChild(confScript);
+      bannerRef.current.appendChild(invokeScript);
+    }
+  }, [isOpen, adRotation]);
+
+  const getExtractionProgressText = () => {
+    const isSubtitle = title.toLowerCase().includes('subtitle');
+    if (elapsed < 3) return '🔍 Accessing YouTube metadata...';
+    if (elapsed < 6) return '⚡ Downloading player configuration...';
+    if (elapsed < 10) return '🛡️ Solving YouTube security challenges...';
+    if (isSubtitle) {
+      if (elapsed < 14) return '🎵 Detecting dubbed languages & caption tracks...';
+      return '✨ Formatting subtitle tracks & preparing results...';
+    } else {
+      if (elapsed < 14) return '🎵 Detecting dubbed audio tracks & languages...';
+      return '✨ Formatting audio formats & preparing results...';
+    }
+  };
+
+  const getProgressWidth = () => {
+    if (type === 'extract') {
+      const calculated = 5 + elapsed * 6;
+      return `${Math.min(calculated, 95)}%`;
+    }
+    return `${((totalSeconds - seconds) / totalSeconds) * 100}%`;
+  };
+
   useEffect(() => {
     if (!isOpen) {
-      setSeconds(type === 'extract' ? 3 : 6);
+      setSeconds(type === 'extract' ? 0 : 6);
       setGuidePhase(false);
       hasOpenedRef.current = false;
       return;
     }
-    const total = type === 'extract' ? 3 : 6;
+    const total = type === 'extract' ? 0 : 6;
     setSeconds(total);
     setGuidePhase(false);
     hasOpenedRef.current = false;
+
+    if (type === 'extract') {
+      return;
+    }
+
     const interval = setInterval(() => {
       setSeconds((prev) => {
         if (prev <= 1) {
@@ -94,9 +181,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
             }
           };
 
-          if (type === 'extract') {
-            runRef.current.onClose();
-          } else if (type === 'download') {
+          if (type === 'download') {
             if (runRef.current.ext === 'mp3') {
               // MP3: stay in same card — download button will appear inline
             } else {
@@ -114,6 +199,14 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     }, 1000);
     return () => clearInterval(interval);
   }, [isOpen, type]);
+
+  const triggerSmartlinkOnce = () => {
+    const smartlinkOpened = sessionStorage.getItem('atd_smartlink_opened');
+    if (!smartlinkOpened) {
+      sessionStorage.setItem('atd_smartlink_opened', 'true');
+      window.open('https://degreeeruptionpredator.com/ahijxi03?key=f6dd3af4cba03cac352ac9823d404ac6', '_blank');
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -139,6 +232,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
             <button
               onClick={() => {
                 onClose();
+                triggerSmartlinkOnce();
                 try { if (downloadUrl) window.open(downloadUrl, '_blank'); } catch (e) { console.error(e); }
               }}
               className="w-full max-w-sm bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2"
@@ -192,40 +286,35 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
 
         <h3 className="text-xl font-bold text-gray-900 mb-2 font-sans">{title}</h3>
         <div className="text-sm text-gray-500 mb-6 flex items-center justify-center gap-1.5">
-          {seconds > 0 ? (
+          {type === 'extract' ? (
+            <span className="text-indigo-600 font-semibold flex items-center gap-1.5 animate-pulse">
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
+              {getExtractionProgressText()}
+            </span>
+          ) : seconds > 0 ? (
             <span>
-              {type === 'extract' ? 'Extracting data... ' : type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
+              {type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
               Please wait <strong className="text-indigo-600 text-base">{seconds}s</strong>
             </span>
           ) : (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" />
-              {type === 'extract' ? 'Done! Loading your results...' : type === 'subtitle' ? 'Starting download...' : 'Opening download guide...'}
+              Your file is ready!
             </span>
           )}
         </div>
 
         {/* Ad Slot */}
-        <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 min-h-[200px] flex flex-col items-center justify-center relative overflow-hidden mb-6">
-          <div className="absolute top-2 left-2 bg-slate-200 text-slate-500 font-bold px-2 py-0.5 rounded text-[8px] uppercase tracking-wide">Sponsored</div>
-          <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3">
-              {type === 'extract' ? <Play className="w-6 h-6 text-indigo-500" /> : <ShieldCheck className="w-6 h-6 text-indigo-500" />}
-            </div>
-            <p className="font-bold text-gray-800 text-base">{activeAd.title}</p>
-            <p className="text-xs text-gray-400 mt-1.5 max-w-[300px]">{activeAd.desc}</p>
-            <a href={activeAd.url} target="_blank" rel="noreferrer"
-              className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-3 px-8 rounded-xl shadow transition-all inline-block hover:scale-105">
-              {activeAd.btn}
-            </a>
-          </div>
+        <div className="bg-slate-50 rounded-2xl min-h-[250px] flex flex-col items-center justify-center relative overflow-hidden mb-6">
+          <div className="absolute top-2 left-2 bg-slate-200/80 text-slate-600 font-bold px-2 py-0.5 rounded text-[8px] uppercase tracking-wide z-10">Sponsored</div>
+          <div ref={bannerRef} className="w-[300px] h-[250px] flex items-center justify-center bg-slate-100/50" />
         </div>
 
         {/* Progress bar */}
         <div className="w-full bg-slate-100 h-1.5 rounded-full mb-4 overflow-hidden">
           <div
             className="bg-indigo-600 h-full rounded-full transition-all duration-1000 ease-linear"
-            style={{ width: `${((totalSeconds - seconds) / totalSeconds) * 100}%` }}
+            style={{ width: getProgressWidth() }}
           />
         </div>
 
@@ -234,7 +323,10 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
             <a
               href={directStreamUrl || '#'}
               download
-              onClick={(e) => { if (!directStreamUrl) e.preventDefault(); }}
+              onClick={(e) => {
+                triggerSmartlinkOnce();
+                if (!directStreamUrl) e.preventDefault();
+              }}
               className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 no-underline"
             >
               <Download className="w-4 h-4" />
@@ -522,6 +614,7 @@ function SubtitlesPageContent() {
         onTimerComplete={handleAdTimerComplete}
         downloadUrl={adDownloadUrl}
         ext={adTargetTrack?.ext}
+        isLoading={loading}
       />
 
       {/* Limits & Banner Info */}

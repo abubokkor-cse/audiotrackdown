@@ -8,7 +8,12 @@
       "role": "owner",
       "createdAt": "2026-06-25T19:26:14.395Z",
       "updatedAt": "2026-06-25T19:26:14.395Z",
-      "deletedAt": null
+      "deletedAt": null,
+      "paddleCustomerId": null,
+      "paddleSubscriptionId": null,
+      "paddlePriceId": null,
+      "planName": "Free",
+      "subscriptionStatus": "active"
     },
     {
       "id": 2,
@@ -18,7 +23,12 @@
       "role": "owner",
       "createdAt": "2026-06-26T17:20:23.922Z",
       "updatedAt": "2026-06-27T04:00:40.120Z",
-      "deletedAt": null
+      "deletedAt": null,
+      "paddleCustomerId": "cus_admin",
+      "paddleSubscriptionId": "sub_admin_annual",
+      "paddlePriceId": "pri_annual",
+      "planName": "Pro Annual",
+      "subscriptionStatus": "active"
     },
     {
       "id": 3,
@@ -28,65 +38,12 @@
       "role": "owner",
       "createdAt": "2026-06-27T04:32:21.640Z",
       "updatedAt": "2026-06-27T04:32:21.640Z",
-      "deletedAt": null
-    }
-  ],
-  "teams": [
-    {
-      "id": 1,
-      "name": "Demo's Team",
-      "createdAt": "2026-06-25T19:26:14.395Z",
-      "updatedAt": "2026-06-25T19:26:14.395Z",
+      "deletedAt": null,
       "paddleCustomerId": null,
       "paddleSubscriptionId": null,
       "paddlePriceId": null,
       "planName": "Free",
       "subscriptionStatus": "active"
-    },
-    {
-      "id": 2,
-      "name": "abubokkor.cse@gmail.com's Team",
-      "createdAt": "2026-06-26T17:20:23.923Z",
-      "updatedAt": "2026-06-26T17:20:23.923Z",
-      "paddleCustomerId": "cus_admin",
-      "paddleSubscriptionId": "sub_admin_annual",
-      "paddlePriceId": "pri_annual",
-      "planName": "Pro Annual",
-      "subscriptionStatus": "active"
-    },
-    {
-      "id": 3,
-      "name": "mrfack428@gmail.com's Team",
-      "createdAt": "2026-06-27T04:32:21.643Z",
-      "updatedAt": "2026-06-27T04:32:21.643Z",
-      "paddleCustomerId": null,
-      "paddleSubscriptionId": null,
-      "paddlePriceId": null,
-      "planName": "Free",
-      "subscriptionStatus": "active"
-    }
-  ],
-  "teamMembers": [
-    {
-      "id": 1,
-      "userId": 1,
-      "teamId": 1,
-      "role": "owner",
-      "joinedAt": "2026-06-25T19:26:14.395Z"
-    },
-    {
-      "id": 2,
-      "userId": 2,
-      "teamId": 2,
-      "role": "owner",
-      "joinedAt": "2026-06-26T17:20:23.923Z"
-    },
-    {
-      "id": 3,
-      "userId": 3,
-      "teamId": 3,
-      "role": "owner",
-      "joinedAt": "2026-06-27T04:32:21.644Z"
     }
   ],
   "downloadLogs": [
@@ -313,6 +270,14 @@
       "createdAt": "2026-06-30T17:14:25.636Z",
       "type": "audio",
       "lang": "Bangla"
+    },
+    {
+      "id": 29,
+      "userId": null,
+      "ipAddress": "::1",
+      "createdAt": "2026-07-02T18:36:39.976Z",
+      "type": "audio",
+      "lang": "French"
     }
   ],
   "activityLogs": [
@@ -476,6 +441,5 @@
       "timestamp": "2026-06-30T17:24:52.817Z",
       "ipAddress": ""
     }
-  ],
-  "invitations": []
+  ]
 }

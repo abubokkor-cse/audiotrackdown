@@ -108,10 +108,8 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link href={isPro ? "/dashboard" : "/"} className="logo flex items-center gap-1.5">
-          <span className="text-xl font-bold tracking-tight text-slate-900" style={{ fontFamily: "var(--font-space-grotesk, 'Space Grotesk', sans-serif)" }}>
-            audio<span className="text-indigo-600">track</span>down
-          </span>
+        <Link href={isPro ? "/dashboard" : "/"} className="logo flex items-center">
+          <img src="/logo.svg" alt="audio track down logo" className="h-7 w-auto select-none" />
         </Link>
 
         {/* Desktop links */}
@@ -221,9 +219,7 @@ function Footer() {
           {/* Brand Column */}
           <div className="space-y-4 md:col-span-1">
             <Link href="/" className="footer-logo inline-block">
-              <span className="text-lg font-bold tracking-tight text-slate-900" style={{ fontFamily: "var(--font-space-grotesk, 'Space Grotesk', sans-serif)" }}>
-                audio<span className="text-indigo-600">track</span>down
-              </span>
+              <img src="/logo.svg" alt="audio track down logo" className="h-6 w-auto select-none" />
             </Link>
             <p className="text-sm text-gray-500 leading-relaxed">
               Extract high-quality audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly.
@@ -268,13 +264,13 @@ function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Legal & Support</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" onClick={(e) => e.preventDefault()} className="text-gray-600 hover:text-indigo-600 transition-colors">Terms of Service</a>
+                <Link href="/terms" className="text-gray-600 hover:text-indigo-600 transition-colors">Terms of Service</Link>
               </li>
               <li>
-                <a href="#" onClick={(e) => e.preventDefault()} className="text-gray-600 hover:text-indigo-600 transition-colors">Privacy Policy</a>
+                <Link href="/privacy" className="text-gray-600 hover:text-indigo-600 transition-colors">Privacy Policy</Link>
               </li>
               <li>
-                <a href="#" onClick={(e) => e.preventDefault()} className="text-gray-600 hover:text-indigo-600 transition-colors">Contact Support</a>
+                <Link href="/contact" className="text-gray-600 hover:text-indigo-600 transition-colors">Contact Support</Link>
               </li>
             </ul>
           </div>

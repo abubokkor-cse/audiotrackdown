@@ -20,10 +20,9 @@ import { Button } from '@/components/ui/button';
 
 interface PricingClientProps {
   user: any;
-  team: any;
 }
 
-export default function PricingClient({ user, team }: PricingClientProps) {
+export default function PricingClient({ user }: PricingClientProps) {
   const router = useRouter();
   const [paddle, setPaddle] = useState<Paddle | null>(null);
   const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
@@ -50,11 +49,6 @@ export default function PricingClient({ user, team }: PricingClientProps) {
       return;
     }
 
-    if (!team) {
-      alert('Error: No team associated with your account.');
-      return;
-    }
-
     if (!paddle) {
       alert('Paddle billing is initializing, please try again in a second.');
       return;
@@ -66,7 +60,6 @@ export default function PricingClient({ user, team }: PricingClientProps) {
       paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
         customData: {
-          teamId: team.id.toString(),
           userId: user.id.toString(),
         },
         customer: {
@@ -85,9 +78,9 @@ export default function PricingClient({ user, team }: PricingClientProps) {
     }
   };
 
-  const hasActiveSub = team?.subscriptionStatus === 'active' || team?.subscriptionStatus === 'trialing';
-  const isMonthly = team?.paddlePriceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY;
-  const isAnnual = team?.paddlePriceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL;
+  const hasActiveSub = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
+  const isMonthly = user?.paddlePriceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY;
+  const isAnnual = user?.paddlePriceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL;
 
   const tiers = [
     {

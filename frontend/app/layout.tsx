@@ -1,12 +1,16 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
+import { getUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
+import AdProvider from '@/components/AdProvider';
 
 export const metadata: Metadata = {
   title: 'AudioTrackDown — Free YouTube & Facebook Audio Extractor & Subtitle Downloader',
   description: 'Extract audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly. Download MP3, M4A, SRT, VTT in 157+ languages — free, fast, mobile-optimized.',
+  icons: {
+    icon: '/icon.svg',
+  },
   keywords: [
     'youtube audio extractor', 
     'facebook audio downloader', 
@@ -24,23 +28,26 @@ export const metadata: Metadata = {
     'youtube subtitle downloader all languages',
     'how to download subtitles from youtube'
   ],
+  metadataBase: new URL('https://audiotrackdown.com'),
   openGraph: {
-    title: 'AudioTrackDown — Free YouTube & Facebook Audio Extractor & Subtitle Downloader',
-    description: 'Extract audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly. Download MP3, M4A, SRT, VTT in 157+ languages.',
-    type: 'website',
+    title: 'AudioTrackDown — YouTube & Facebook Audio & Subtitle Downloader',
+    description: 'Download audio tracks, dubbed voices, and subtitles from YouTube & Facebook instantly. Free MP3, M4A, SRT, and VTT exports.',
     url: 'https://audiotrackdown.com',
     siteName: 'AudioTrackDown',
+    locale: 'en_US',
+    type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AudioTrackDown — Free YouTube & Facebook Audio Extractor & Subtitle Downloader',
-    description: 'Extract audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly. Download MP3, M4A, SRT, VTT in 157+ languages.',
-  }
+    title: 'AudioTrackDown — YouTube & Facebook Audio & Subtitle Downloader',
+    description: 'Download audio tracks, dubbed voices, and subtitles from YouTube & Facebook instantly. Free MP3, M4A, SRT, and VTT exports.',
+  },
 };
 
-
 export const viewport: Viewport = {
-  maximumScale: 1
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -57,13 +64,13 @@ export default function RootLayout({
       className={`bg-white text-black ${inter.variable} ${spaceGrotesk.variable}`}
     >
       <body className={`min-h-[100dvh] bg-white ${inter.className}`}>
+        <AdProvider />
         <SWRConfig
           value={{
             fallback: {
               // We do NOT await here
               // Only components that read this data will suspend
               '/api/user': getUser(),
-              '/api/team': getTeamForUser()
             }
           }}
         >

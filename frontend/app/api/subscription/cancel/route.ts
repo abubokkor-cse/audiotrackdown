@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, getTeamForUser, updateTeamSubscription } from '@/lib/db/queries';
+import { getUser, updateUserSubscription } from '@/lib/db/queries';
 import { getPaddleInstance } from '@/lib/payments/paddle';
 
 const isMock = !process.env.POSTGRES_URL || process.env.POSTGRES_URL.includes('***');
@@ -11,16 +11,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const team = await getTeamForUser();
-    if (!team) {
-      return NextResponse.json({ success: false, error: 'No team found for user' }, { status: 404 });
-    }
-
     // If there is an active Paddle subscription, cancel it
-    if (team.paddleSubscriptionId && !isMock && process.env.PADDLE_API_KEY && !process.env.PADDLE_API_KEY.includes('REPLACE')) {
+    if (user.paddleSubscriptionId && !isMock && process.env.PADDLE_API_KEY && !process.env.PADDLE_API_KEY.includes('REPLACE')) {
       try {
         const paddle = getPaddleInstance();
-        await paddle.subscriptions.cancel(team.paddleSubscriptionId, {
+        await paddle.subscriptions.cancel(user.paddleSubscriptionId, {
           effectiveFrom: 'next_billing_period',
         });
       } catch (err: any) {
@@ -29,8 +24,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Update local database subscription status
-    await updateTeamSubscription(team.id, {
-      paddleSubscriptionId: team.paddleSubscriptionId,
+    await updateUserSubscription(user.id, {
+      paddleSubscriptionId: user.paddleSubscriptionId,
       paddlePriceId: null,
       planName: 'Free',
       subscriptionStatus: 'cancelled',
