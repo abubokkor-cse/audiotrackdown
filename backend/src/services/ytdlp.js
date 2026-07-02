@@ -190,14 +190,12 @@ function extractAudioTracks(rawUrl) {
     });
 
     const strategies = [
-      // 💻 Try extracting from ALL clients with a simulated Chrome user-agent (gives full multi-language tracks)
+      // 💻 Try ALL clients with Chrome user-agent (aggregates multi-language audio from all clients)
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked (returns at least the default/original track)
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'ios', label: 'ios' },
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'tv', label: 'tv' },
-      // 🍪 Last resort using browser cookies
-      { useCookies: true, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'cookies+all' },
     ];
 
     (async () => {
@@ -516,14 +514,12 @@ function getStreamUrl(rawUrl, formatId) {
     });
 
     const strategies = [
-      // 💻 Try extracting from ALL clients with a simulated Chrome user-agent (gives full multi-language tracks)
+      // 💻 Try ALL clients with Chrome user-agent (aggregates multi-language audio)
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
-      // 📱 Try mobile fallback if blocked (returns at least the default/original track)
+      // 📱 Try mobile fallback if blocked
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'ios', label: 'ios' },
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'tv', label: 'tv' },
-      // 🍪 Last resort using browser cookies
-      { useCookies: true, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'cookies+all' },
     ];
 
     (async () => {

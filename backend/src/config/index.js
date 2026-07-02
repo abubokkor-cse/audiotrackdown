@@ -9,6 +9,6 @@ module.exports = {
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 50,
   },
   ytdlp: {
-    timeoutMs: parseInt(process.env.YTDLP_TIMEOUT_MS, 10) || 30000,
+    timeoutMs: parseInt(process.env.YTDLP_TIMEOUT_MS, 10) || 90000,
   },
 };
