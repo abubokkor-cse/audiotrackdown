@@ -3,6 +3,13 @@ const config = require('./config');
 const { setupSecurity } = require('./middleware/security');
 const { generalLimiter } = require('./middleware/rateLimit');
 
+// Debug: log proxy environment variables to detect conflicts
+Object.keys(process.env).forEach(key => {
+  if (key.toLowerCase().includes('proxy') || key.toLowerCase().includes('agent')) {
+    console.log(`[env] ${key}: ${process.env[key] ? 'SET' : 'EMPTY'}`);
+  }
+});
+
 // Import routes
 const extractRoutes = require('./routes/extract');
 const downloadRoutes = require('./routes/download');
