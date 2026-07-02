@@ -51,6 +51,29 @@ function normalizeYouTubeUrl(rawUrl) {
   return rawUrl;
 }
 
+/**
+ * Resolves the rotating proxy URL, automatically transforming HTTP to SOCKS5h
+ * to force remote DNS resolution on headless environments.
+ */
+function getProxyUrl() {
+  const rawProxy = process.env.ROTATING_PROXIES;
+  if (!rawProxy) return null;
+  
+  // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
+  if (rawProxy.includes('gw.dataimpulse.com:823')) {
+    return rawProxy
+      .replace(/^http:\/\//i, 'socks5h://')
+      .replace(':823', ':824');
+  }
+  
+  // If SOCKS5 is already set, upgrade it to socks5h
+  if (rawProxy.startsWith('socks5://')) {
+    return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+  }
+  
+  return rawProxy;
+}
+
 // In-memory cache: URL → extracted data (5 min TTL)
 const cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
@@ -157,8 +180,9 @@ function extractAudioTracks(rawUrl) {
       if (useCookies) {
         args.push('--cookies-from-browser', 'chrome');
       }
-      if (process.env.ROTATING_PROXIES) {
-        args.push('--proxy', process.env.ROTATING_PROXIES);
+      const proxyUrl = getProxyUrl();
+      if (proxyUrl) {
+        args.push('--proxy', proxyUrl);
       }
       args.push('--skip-download', url);
       return args;
@@ -216,7 +240,8 @@ function extractAudioTracks(rawUrl) {
         try {
           const args = buildArgs(strategy);
           const hasProxy = args.includes('--proxy');
-          console.log(`[ytdlp] Running strategy "${strategy.label}" | proxy=${hasProxy} | ROTATING_PROXIES=${process.env.ROTATING_PROXIES ? 'SET(' + process.env.ROTATING_PROXIES.substring(0, 30) + '...)' : 'NOT SET'}`);
+          const proxyUrl = getProxyUrl();
+          console.log(`[ytdlp] Running strategy "${strategy.label}" | proxy=${hasProxy} | proxyUrl=${proxyUrl ? 'SET(' + proxyUrl.substring(0, 35) + '...)' : 'NOT SET'}`);
           const stdout = await runStrategy(args);
           console.log(`[ytdlp] ✓ Strategy "${strategy.label}" completed successfully`);
           
@@ -511,8 +536,9 @@ function getStreamUrl(rawUrl, formatId) {
         args.push('--cookies-from-browser', 'chrome');
       }
 
-      if (process.env.ROTATING_PROXIES) {
-        args.push('--proxy', process.env.ROTATING_PROXIES);
+      const proxyUrl = getProxyUrl();
+      if (proxyUrl) {
+        args.push('--proxy', proxyUrl);
       }
 
       args.push('-f', formatId, url);

@@ -9,6 +9,29 @@ const crypto = require('crypto');
 const config = require('../config');
 const subtitleService = require('../services/subtitleService');
 
+/**
+ * Resolves the rotating proxy URL, automatically transforming HTTP to SOCKS5h
+ * to force remote DNS resolution on headless environments.
+ */
+function getProxyUrl() {
+  const rawProxy = process.env.ROTATING_PROXIES;
+  if (!rawProxy) return null;
+  
+  // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
+  if (rawProxy.includes('gw.dataimpulse.com:823')) {
+    return rawProxy
+      .replace(/^http:\/\//i, 'socks5h://')
+      .replace(':823', ':824');
+  }
+  
+  // If SOCKS5 is already set, upgrade it to socks5h
+  if (rawProxy.startsWith('socks5://')) {
+    return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+  }
+  
+  return rawProxy;
+}
+
 
 // ── Resolve the newest yt-dlp binary ─────────────────────────────────────────
 const YTDLP_CANDIDATES = [
@@ -150,9 +173,11 @@ router.get('/download', async (req, res) => {
         args.push('--cookies-from-browser', 'chrome');
       }
 
-      if (process.env.ROTATING_PROXIES) {
-        args.push('--proxy', process.env.ROTATING_PROXIES);
+      const proxyUrl = getProxyUrl();
+      if (proxyUrl) {
+        args.push('--proxy', proxyUrl);
       }
+      args.push('--no-cache-dir');
 
       args.push(watchUrl);
       return args;

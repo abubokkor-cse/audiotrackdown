@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install curl_cffi to allow yt-dlp to impersonate browser TLS signatures and bypass YouTube's bot-detection fingerprinting
-RUN pip3 install --break-system-packages curl_cffi
+# Install curl_cffi and pysocks to allow yt-dlp to impersonate browser TLS signatures and use SOCKS5h proxies with remote DNS resolution
+RUN pip3 install --break-system-packages curl_cffi pysocks
 
 
 # Download and install the latest yt-dlp binary
