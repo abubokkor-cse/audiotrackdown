@@ -150,6 +150,10 @@ router.get('/download', async (req, res) => {
         args.push('--cookies-from-browser', 'chrome');
       }
 
+      if (process.env.ROTATING_PROXIES) {
+        args.push('--proxy', process.env.ROTATING_PROXIES);
+      }
+
       args.push(watchUrl);
       return args;
     };

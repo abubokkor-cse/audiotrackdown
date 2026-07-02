@@ -146,6 +146,9 @@ function extractAudioTracks(rawUrl) {
       if (useCookies) {
         args.push('--cookies-from-browser', 'chrome');
       }
+      if (process.env.ROTATING_PROXIES) {
+        args.push('--proxy', process.env.ROTATING_PROXIES);
+      }
       args.push('--skip-download', url);
       return args;
     };
@@ -471,6 +474,10 @@ function getStreamUrl(rawUrl, formatId) {
 
       if (useCookies) {
         args.push('--cookies-from-browser', 'chrome');
+      }
+
+      if (process.env.ROTATING_PROXIES) {
+        args.push('--proxy', process.env.ROTATING_PROXIES);
       }
 
       args.push('-f', formatId, url);
