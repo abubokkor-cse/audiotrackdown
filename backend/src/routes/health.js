@@ -36,13 +36,14 @@ router.get('/proxy-test', (req, res) => {
     }
     
     // 3. Run yt-dlp direct format diagnosis with Chrome TLS impersonation
-    const watchUrl = 'https://www.youtube.com/watch?v=1FHOMM5As0w';
+    // Default: Spider-Man Across the Spider-Verse trailer — known to have 10+ dubbed languages
+    const watchUrl = req.query.url || 'https://www.youtube.com/watch?v=cSp1dM2Vj48';
     const cmd = `"${YTDLP_BIN}" --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
     
     let ytdlpOutput = '';
     let ytdlpStderr = '';
     try {
-      ytdlpOutput = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 40000 });
+      ytdlpOutput = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 85000 });
     } catch (e) {
       ytdlpOutput = e.stdout?.toString() || '';
       ytdlpStderr = e.stderr?.toString() || e.message;
