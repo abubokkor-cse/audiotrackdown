@@ -166,7 +166,7 @@ router.get('/download', async (req, res) => {
       ];
 
       if (useImpersonate) {
-        args.push('--impersonate', 'Chrome-136');
+        args.push('--impersonate', 'chrome');
       }
 
       if (useCookies) {

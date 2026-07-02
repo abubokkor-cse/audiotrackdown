@@ -164,7 +164,7 @@ function extractAudioTracks(rawUrl) {
       ];
       if (isYouTubeUrl) {
         if (useImpersonate) {
-          args.push('--impersonate', 'Chrome-136');
+          args.push('--impersonate', 'chrome');
         }
         if (useUserAgent) {
           args.push(
@@ -222,7 +222,7 @@ function extractAudioTracks(rawUrl) {
 
     const strategies = [
       // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
-      { useCookies: false, useImpersonate: true, useUserAgent: true, playerClient: 'all', label: 'all-impersonate' },
+      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
       // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked (returns at least the default/original track)
@@ -517,7 +517,7 @@ function getStreamUrl(rawUrl, formatId) {
       if (isYouTubeUrl) {
         if (useImpersonate) {
           args.push(
-            '--impersonate', 'Chrome-136'
+            '--impersonate', 'chrome'
           );
         }
         if (useUserAgent) {
@@ -579,7 +579,7 @@ function getStreamUrl(rawUrl, formatId) {
 
     const strategies = [
       // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
-      { useCookies: false, useImpersonate: true, useUserAgent: true, playerClient: 'all', label: 'all-impersonate' },
+      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
       // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked

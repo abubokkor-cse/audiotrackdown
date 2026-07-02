@@ -35,7 +35,7 @@ router.get('/proxy-test', (req, res) => {
     
     // 3. Run yt-dlp direct format diagnosis with Chrome TLS impersonation
     const watchUrl = 'https://www.youtube.com/watch?v=1FHOMM5As0w';
-    const cmd = `yt-dlp --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "Chrome-136" --extractor-args "youtube:player_client=all" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" --proxy "${actualProxy}" "${watchUrl}"`;
+    const cmd = `yt-dlp --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "chrome" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
     
     let ytdlpOutput = '';
     let ytdlpStderr = '';
