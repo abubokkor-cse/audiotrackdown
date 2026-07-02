@@ -46,6 +46,7 @@ router.post('/prepare', downloadLimiter, validateVideoUrl, validateFormatId, asy
       // Strategy that worked during getStreamUrl — reuse for download pipeline
       strategyUseCookies: streamInfo.strategyUseCookies,
       strategyUseImpersonate: streamInfo.strategyUseImpersonate,
+      strategyUseUserAgent: streamInfo.strategyUseUserAgent || false,
       strategyPlayerClient: streamInfo.strategyPlayerClient || 'web',
     });
 
@@ -128,6 +129,13 @@ router.get('/stream/:id', (req, res) => {
       // Reuse the EXACT strategy that succeeded during getStreamUrl
       if (download.strategyUseImpersonate) {
         ytdlpArgs.push('--impersonate', 'Chrome-136');
+      }
+      if (download.strategyUseUserAgent) {
+        ytdlpArgs.push(
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          '--add-header', 'Accept-Language: en-US,en;q=0.9'
+        );
       }
       const playerClient = download.strategyPlayerClient || 'web';
       ytdlpArgs.push('--extractor-args', `youtube:player_client=${playerClient}`);

@@ -124,7 +124,7 @@ function extractAudioTracks(rawUrl) {
 
     const isYouTubeUrl = url.includes('youtube.com') || url.includes('youtu.be');
 
-    const buildArgs = ({ useCookies = false, useImpersonate = true, playerClient = 'web' } = {}) => {
+    const buildArgs = ({ useCookies = false, useImpersonate = false, useUserAgent = false, playerClient = 'web' } = {}) => {
       const args = [
         '--no-update',
         '--no-warnings',
@@ -135,6 +135,13 @@ function extractAudioTracks(rawUrl) {
       if (isYouTubeUrl) {
         if (useImpersonate) {
           args.push('--impersonate', 'Chrome-136');
+        }
+        if (useUserAgent) {
+          args.push(
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            '--add-header', 'Accept-Language: en-US,en;q=0.9'
+          );
         }
         args.push(
           '--extractor-args', `youtube:player_client=${playerClient}`,
@@ -186,15 +193,14 @@ function extractAudioTracks(rawUrl) {
     });
 
     const strategies = [
-      // 💻 Try extracting from ALL clients first (gives full multi-language audio track support)
-      { useCookies: false, useImpersonate: true, playerClient: 'all', label: 'all-impersonate' },
-      { useCookies: false, useImpersonate: false, playerClient: 'all', label: 'all-plain' },
-      // 📱 Try mobile fallback if ALL is blocked (returns at least the default/original track)
-      { useCookies: false, useImpersonate: false, playerClient: 'android', label: 'android' },
-      { useCookies: false, useImpersonate: false, playerClient: 'ios', label: 'ios' },
-      { useCookies: false, useImpersonate: false, playerClient: 'tv', label: 'tv' },
+      // 💻 Try extracting from ALL clients with a simulated Chrome user-agent (gives full multi-language tracks)
+      { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
+      // 📱 Try mobile fallback if blocked (returns at least the default/original track)
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'ios', label: 'ios' },
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'tv', label: 'tv' },
       // 🍪 Last resort using browser cookies
-      { useCookies: true, useImpersonate: true, playerClient: 'all', label: 'cookies+all' },
+      { useCookies: true, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'cookies+all' },
     ];
 
     (async () => {
@@ -452,7 +458,7 @@ function getStreamUrl(rawUrl, formatId) {
   return new Promise((resolve, reject) => {
     const isYouTubeUrl = url.includes('youtube.com') || url.includes('youtu.be');
 
-    const buildArgs = ({ useCookies = false, useImpersonate = true, playerClient = 'web' } = {}) => {
+    const buildArgs = ({ useCookies = false, useImpersonate = false, useUserAgent = false, playerClient = 'web' } = {}) => {
       const args = [
         '--no-update',
         '--no-warnings',
@@ -465,6 +471,13 @@ function getStreamUrl(rawUrl, formatId) {
         if (useImpersonate) {
           args.push(
             '--impersonate', 'Chrome-136'
+          );
+        }
+        if (useUserAgent) {
+          args.push(
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            '--add-header', 'Accept-Language: en-US,en;q=0.9'
           );
         }
         args.push(
@@ -517,15 +530,14 @@ function getStreamUrl(rawUrl, formatId) {
     });
 
     const strategies = [
-      // 💻 Try extracting from ALL clients first (gives full multi-language audio track support)
-      { useCookies: false, useImpersonate: true, playerClient: 'all', label: 'all-impersonate' },
-      { useCookies: false, useImpersonate: false, playerClient: 'all', label: 'all-plain' },
-      // 📱 Try mobile fallback if ALL is blocked (returns at least the default/original track)
-      { useCookies: false, useImpersonate: false, playerClient: 'android', label: 'android' },
-      { useCookies: false, useImpersonate: false, playerClient: 'ios', label: 'ios' },
-      { useCookies: false, useImpersonate: false, playerClient: 'tv', label: 'tv' },
+      // 💻 Try extracting from ALL clients with a simulated Chrome user-agent (gives full multi-language tracks)
+      { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
+      // 📱 Try mobile fallback if blocked (returns at least the default/original track)
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'ios', label: 'ios' },
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'tv', label: 'tv' },
       // 🍪 Last resort using browser cookies
-      { useCookies: true, useImpersonate: true, playerClient: 'all', label: 'cookies+all' },
+      { useCookies: true, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'cookies+all' },
     ];
 
     (async () => {
@@ -566,6 +578,7 @@ function getStreamUrl(rawUrl, formatId) {
           // Return strategy details so download route can reuse the same yt-dlp flags
           strategyUseCookies: winningStrategy.useCookies,
           strategyUseImpersonate: winningStrategy.useImpersonate,
+          strategyUseUserAgent: winningStrategy.useUserAgent || false,
           strategyPlayerClient: winningStrategy.playerClient || 'web',
         });
       } catch {
