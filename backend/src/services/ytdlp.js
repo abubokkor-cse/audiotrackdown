@@ -189,7 +189,7 @@ function extractAudioTracks(rawUrl) {
         '--dump-json',
         '--no-download',
         '--no-playlist',
-        '--no-cache-dir',
+        '--cache-dir', '/tmp/yt-dlp-cache',
       ];
       if (isYouTubeUrl) {
         if (useImpersonate) {
@@ -250,10 +250,10 @@ function extractAudioTracks(rawUrl) {
     });
 
     const strategies = [
-      // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
-      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
+      // 💻 Try optimized clients with Chrome TLS impersonation (needs curl_cffi in container)
+      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'android,web_embedded', label: 'optimized-impersonate' },
       // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
-      { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
+      { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'android,web_embedded', label: 'optimized-chrome-ua' },
       // 📱 Try mobile fallback if blocked (returns at least the default/original track)
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'ios', label: 'ios' },
@@ -540,7 +540,7 @@ function getStreamUrl(rawUrl, formatId) {
         '--dump-json',
         '--no-download',
         '--no-playlist',
-        '--no-cache-dir',
+        '--cache-dir', '/tmp/yt-dlp-cache',
       ];
 
       if (isYouTubeUrl) {
@@ -607,10 +607,10 @@ function getStreamUrl(rawUrl, formatId) {
     });
 
     const strategies = [
-      // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
-      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
+      // 💻 Try optimized clients with Chrome TLS impersonation (needs curl_cffi in container)
+      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'android,web_embedded', label: 'optimized-impersonate' },
       // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
-      { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
+      { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'android,web_embedded', label: 'optimized-chrome-ua' },
       // 📱 Try mobile fallback if blocked
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android', label: 'android' },
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'ios', label: 'ios' },

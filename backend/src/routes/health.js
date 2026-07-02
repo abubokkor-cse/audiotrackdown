@@ -38,7 +38,8 @@ router.get('/proxy-test', (req, res) => {
     // 3. Run yt-dlp direct format diagnosis with Chrome TLS impersonation
     // Default: Spider-Man Across the Spider-Verse trailer — known to have 10+ dubbed languages
     const watchUrl = req.query.url || 'https://www.youtube.com/watch?v=cSp1dM2Vj48';
-    const cmd = `"${YTDLP_BIN}" --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
+    const cmd = `"${YTDLP_BIN}" --no-update --no-warnings --dump-json --no-download --no-playlist --cache-dir "/tmp/yt-dlp-cache" --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=android,web_embedded" --proxy "${actualProxy}" "${watchUrl}"`;
+
     
     let ytdlpOutput = '';
     let ytdlpStderr = '';
@@ -97,7 +98,7 @@ router.get('/verbose-test', (req, res) => {
       actualProxy = proxy.replace(/^http:\/\//i, 'socks5h://').replace(':823', ':824');
     }
     const watchUrl = req.query.url || 'https://www.youtube.com/watch?v=1FHOMM5As0w';
-    const cmd = `"${YTDLP_BIN}" -v --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
+    const cmd = `"${YTDLP_BIN}" -v --no-update --no-warnings --dump-json --no-download --no-playlist --cache-dir "/tmp/yt-dlp-cache" --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=android,web_embedded" --proxy "${actualProxy}" "${watchUrl}"`;
     
     const { spawnSync } = require('child_process');
     const parts = [
@@ -107,15 +108,17 @@ router.get('/verbose-test', (req, res) => {
       '--dump-json',
       '--no-download',
       '--no-playlist',
-      '--no-cache-dir',
+      '--cache-dir',
+      '/tmp/yt-dlp-cache',
       '--impersonate',
       BEST_CHROME_TARGET,
       '--extractor-args',
-      'youtube:player_client=all',
+      'youtube:player_client=android,web_embedded',
       '--proxy',
       actualProxy,
       watchUrl
     ];
+
     
     const result = spawnSync(YTDLP_BIN, parts, { encoding: 'utf8', timeout: 60000 });
     
