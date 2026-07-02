@@ -1,7 +1,7 @@
 const express = require('express');
 const https = require('https');
 const http = require('http');
-const { getStreamUrl, YTDLP_BIN } = require('../services/ytdlp');
+const { getStreamUrl, YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
 const { validateVideoUrl, validateFormatId } = require('../middleware/validate');
 const { downloadLimiter } = require('../middleware/rateLimit');
 const { v4: uuidv4 } = require('uuid');
@@ -129,7 +129,7 @@ router.get('/stream/:id', (req, res) => {
 
       // Reuse the EXACT strategy that succeeded during getStreamUrl
       if (download.strategyUseImpersonate) {
-        ytdlpArgs.push('--impersonate', 'Chrome-136');
+        ytdlpArgs.push('--impersonate', BEST_CHROME_TARGET);
       }
       if (download.strategyUseUserAgent) {
         ytdlpArgs.push(

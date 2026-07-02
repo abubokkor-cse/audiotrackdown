@@ -30,6 +30,35 @@ const YTDLP_BIN = (() => {
   return 'yt-dlp';
 })();
 
+// Detect best available Chrome impersonate target
+const BEST_CHROME_TARGET = (() => {
+  try {
+    const targetsOutput = execSync(`"${YTDLP_BIN}" --list-impersonate-targets 2>/dev/null`, { timeout: 3000 }).toString();
+    const lines = targetsOutput.split('\n');
+    let chromeTargets = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('Client') || trimmed.startsWith('---') || trimmed.startsWith('[info]')) {
+        continue;
+      }
+      const client = trimmed.split(/\s+/)[0];
+      if (client && client.toLowerCase().startsWith('chrome')) {
+        chromeTargets.push(client);
+      }
+    }
+    if (chromeTargets.length > 0) {
+      // Sort descending to choose the highest version (e.g. Chrome-136 before Chrome-133)
+      chromeTargets.sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+      console.log(`[ytdlp] Auto-detected best Chrome impersonate target: ${chromeTargets[0]}`);
+      return chromeTargets[0];
+    }
+  } catch (e) {
+    console.log(`[ytdlp] Failed to auto-detect Chrome impersonate target: ${e.message}`);
+  }
+  return 'chrome'; // Fallback
+})();
+
+
 /**
  * Expand short YouTube URLs (youtu.be/ID) to full watch URL.
  * Also strips the tracking ?si= parameter.
@@ -164,7 +193,7 @@ function extractAudioTracks(rawUrl) {
       ];
       if (isYouTubeUrl) {
         if (useImpersonate) {
-          args.push('--impersonate', 'chrome');
+          args.push('--impersonate', BEST_CHROME_TARGET);
         }
         if (useUserAgent) {
           args.push(
@@ -517,7 +546,7 @@ function getStreamUrl(rawUrl, formatId) {
       if (isYouTubeUrl) {
         if (useImpersonate) {
           args.push(
-            '--impersonate', 'chrome'
+            '--impersonate', BEST_CHROME_TARGET
           );
         }
         if (useUserAgent) {
@@ -643,4 +672,4 @@ function clearCache() {
   return size;
 }
 
-module.exports = { extractAudioTracks, getStreamUrl, clearCache, YTDLP_BIN };
+module.exports = { extractAudioTracks, getStreamUrl, clearCache, YTDLP_BIN, BEST_CHROME_TARGET };

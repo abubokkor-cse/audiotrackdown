@@ -33,34 +33,7 @@ function getProxyUrl() {
 }
 
 
-// ── Resolve the newest yt-dlp binary ─────────────────────────────────────────
-const YTDLP_CANDIDATES = [
-  '/Library/Frameworks/Python.framework/Versions/3.12/bin/yt-dlp',
-  '/Library/Frameworks/Python.framework/Versions/3.11/bin/yt-dlp',
-  '/usr/local/bin/yt-dlp',
-  '/opt/homebrew/bin/yt-dlp',
-  'yt-dlp', // PATH fallback
-];
-
-function resolveYtdlpBin() {
-  for (const candidate of YTDLP_CANDIDATES) {
-    try {
-      const v = execSync(`"${candidate}" --version 2>/dev/null`, { timeout: 3000 })
-        .toString().trim();
-      // Accept any 2026.6.0+ build (fixes the 429 impersonation support)
-      const parts = v.split('.').map(Number);
-      const score = (parts[0] || 0) * 10000 + (parts[1] || 0) * 100 + (parts[2] || 0);
-      if (score >= 2026060) {
-        console.log(`[subtitle] Using yt-dlp: ${candidate} (${v})`);
-        return candidate;
-      }
-    } catch { /* not found or too old, try next */ }
-  }
-  console.warn('[subtitle] Could not find yt-dlp >= 2026.6.0, falling back to PATH');
-  return 'yt-dlp';
-}
-
-const YTDLP_BIN = resolveYtdlpBin();
+const { YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
 
 // ── Route: GET /api/subtitle/download ────────────────────────────────────────
 /**
@@ -166,7 +139,7 @@ router.get('/download', async (req, res) => {
       ];
 
       if (useImpersonate) {
-        args.push('--impersonate', 'chrome');
+        args.push('--impersonate', BEST_CHROME_TARGET);
       }
 
       if (useCookies) {

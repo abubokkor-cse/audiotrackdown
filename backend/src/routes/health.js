@@ -6,6 +6,8 @@ const router = express.Router();
  * Health check endpoint
  */
 const { execSync } = require('child_process');
+const { YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
+
 
 router.get('/', (req, res) => {
   res.json({
@@ -35,7 +37,7 @@ router.get('/proxy-test', (req, res) => {
     
     // 3. Run yt-dlp direct format diagnosis with Chrome TLS impersonation
     const watchUrl = 'https://www.youtube.com/watch?v=1FHOMM5As0w';
-    const cmd = `yt-dlp --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "Chrome" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
+    const cmd = `"${YTDLP_BIN}" --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
     
     let ytdlpOutput = '';
     let ytdlpStderr = '';
