@@ -14,9 +14,10 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --break-system-packages curl_cffi pysocks
 
 
-# Download and install specific working yt-dlp binary (version 2026.03.17)
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2026.03.17/yt-dlp -o /usr/local/bin/yt-dlp \
+# Download and install latest yt-dlp binary (same version as local dev environment)
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
+
 
 # Set working directory
 WORKDIR /usr/src/app
