@@ -183,14 +183,15 @@ function extractAudioTracks(rawUrl) {
     });
 
     const strategies = [
-      // 📱 Try mobile/embedded clients first (highly effective on cloud IPs)
+      // 💻 Try extracting from ALL clients first (gives full multi-language audio track support)
+      { useCookies: false, useImpersonate: true, playerClient: 'all', label: 'all-impersonate' },
+      { useCookies: false, useImpersonate: false, playerClient: 'all', label: 'all-plain' },
+      // 📱 Try mobile fallback if ALL is blocked (returns at least the default/original track)
       { useCookies: false, useImpersonate: false, playerClient: 'android', label: 'android' },
       { useCookies: false, useImpersonate: false, playerClient: 'ios', label: 'ios' },
       { useCookies: false, useImpersonate: false, playerClient: 'tv', label: 'tv' },
-      // 💻 Try desktop clients as fallback
-      { useCookies: false, useImpersonate: true, playerClient: 'web_safari', label: 'safari-impersonate' },
-      { useCookies: false, useImpersonate: true, playerClient: 'web', label: 'chrome-impersonate' },
-      { useCookies: true, useImpersonate: true, playerClient: 'web', label: 'cookies+chrome' },
+      // 🍪 Last resort using browser cookies
+      { useCookies: true, useImpersonate: true, playerClient: 'all', label: 'cookies+all' },
     ];
 
     (async () => {
@@ -509,14 +510,15 @@ function getStreamUrl(rawUrl, formatId) {
     });
 
     const strategies = [
-      // 📱 Try mobile/embedded clients first (highly effective on cloud IPs)
+      // 💻 Try extracting from ALL clients first (gives full multi-language audio track support)
+      { useCookies: false, useImpersonate: true, playerClient: 'all', label: 'all-impersonate' },
+      { useCookies: false, useImpersonate: false, playerClient: 'all', label: 'all-plain' },
+      // 📱 Try mobile fallback if ALL is blocked (returns at least the default/original track)
       { useCookies: false, useImpersonate: false, playerClient: 'android', label: 'android' },
       { useCookies: false, useImpersonate: false, playerClient: 'ios', label: 'ios' },
       { useCookies: false, useImpersonate: false, playerClient: 'tv', label: 'tv' },
-      // 💻 Try desktop clients as fallback
-      { useCookies: false, useImpersonate: true, playerClient: 'web_safari', label: 'safari-impersonate' },
-      { useCookies: false, useImpersonate: true, playerClient: 'web', label: 'chrome-impersonate' },
-      { useCookies: true, useImpersonate: true, playerClient: 'web', label: 'cookies+chrome' },
+      // 🍪 Last resort using browser cookies
+      { useCookies: true, useImpersonate: true, playerClient: 'all', label: 'cookies+all' },
     ];
 
     (async () => {
@@ -557,6 +559,7 @@ function getStreamUrl(rawUrl, formatId) {
           // Return strategy details so download route can reuse the same yt-dlp flags
           strategyUseCookies: winningStrategy.useCookies,
           strategyUseImpersonate: winningStrategy.useImpersonate,
+          strategyPlayerClient: winningStrategy.playerClient || 'web',
         });
       } catch {
         reject(new Error('Failed to parse stream data.'));

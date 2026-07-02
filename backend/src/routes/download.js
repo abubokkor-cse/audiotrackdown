@@ -46,6 +46,7 @@ router.post('/prepare', downloadLimiter, validateVideoUrl, validateFormatId, asy
       // Strategy that worked during getStreamUrl — reuse for download pipeline
       strategyUseCookies: streamInfo.strategyUseCookies,
       strategyUseImpersonate: streamInfo.strategyUseImpersonate,
+      strategyPlayerClient: streamInfo.strategyPlayerClient || 'web',
     });
 
     const safeTitle = streamInfo.title
@@ -127,8 +128,9 @@ router.get('/stream/:id', (req, res) => {
       // Reuse the EXACT strategy that succeeded during getStreamUrl
       if (download.strategyUseImpersonate) {
         ytdlpArgs.push('--impersonate', 'Chrome-136');
-        ytdlpArgs.push('--extractor-args', 'youtube:player_client=web');
       }
+      const playerClient = download.strategyPlayerClient || 'web';
+      ytdlpArgs.push('--extractor-args', `youtube:player_client=${playerClient}`);
       if (download.strategyUseCookies) {
         ytdlpArgs.push('--cookies-from-browser', 'chrome');
       }
