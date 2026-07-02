@@ -31,7 +31,7 @@ router.get('/proxy-test', (req, res) => {
     
     // 2. Resolve proxy to SOCKS5h if it is DataImpulse
     let actualProxy = proxy;
-    if (proxy.includes('gw.dataimpulse.com:823')) {
+    if (req.query.rawProxy !== 'true' && proxy.includes('gw.dataimpulse.com:823')) {
       actualProxy = proxy.replace(/^http:\/\//i, 'socks5h://').replace(':823', ':824');
     }
     
@@ -85,4 +85,39 @@ router.get('/proxy-test', (req, res) => {
   }
 });
 
+
+router.get('/verbose-test', (req, res) => {
+  try {
+    const proxy = process.env.ROTATING_PROXIES;
+    if (!proxy) {
+      return res.json({ success: false, error: 'ROTATING_PROXIES environment variable not set' });
+    }
+    let actualProxy = proxy;
+    if (req.query.rawProxy !== 'true' && proxy.includes('gw.dataimpulse.com:823')) {
+      actualProxy = proxy.replace(/^http:\/\//i, 'socks5h://').replace(':823', ':824');
+    }
+    const watchUrl = req.query.url || 'https://www.youtube.com/watch?v=1FHOMM5As0w';
+    const cmd = `"${YTDLP_BIN}" -v --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "${BEST_CHROME_TARGET}" --extractor-args "youtube:player_client=all" --proxy "${actualProxy}" "${watchUrl}"`;
+    
+    let stdout = '';
+    let stderr = '';
+    try {
+      stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
+    } catch (e) {
+      stdout = e.stdout?.toString() || '';
+      stderr = e.stderr?.toString() || e.message;
+    }
+    
+    res.json({
+      success: true,
+      cmd: cmd.replace(proxy, '***').replace(actualProxy, '***'),
+      stdoutLength: stdout.length,
+      stderr: stderr.split('\n').slice(0, 50) // Return first 50 lines of logs
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+
