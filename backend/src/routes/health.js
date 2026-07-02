@@ -33,12 +33,27 @@ router.get('/proxy-test', (req, res) => {
       actualProxy = proxy.replace(/^http:\/\//i, 'socks5h://').replace(':823', ':824');
     }
     
-    // 3. Run yt-dlp direct format diagnosis
+    // 3. Run yt-dlp direct format diagnosis with Chrome TLS impersonation
     const watchUrl = 'https://www.youtube.com/watch?v=1FHOMM5As0w';
-    const cmd = `yt-dlp --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --extractor-args "youtube:player_client=all" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" --proxy "${actualProxy}" "${watchUrl}"`;
-    const ytdlpOutput = execSync(cmd, { encoding: 'utf8', timeout: 40000 });
+    const cmd = `yt-dlp --no-update --no-warnings --dump-json --no-download --no-playlist --no-cache-dir --impersonate "Chrome-136" --extractor-args "youtube:player_client=all" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" --proxy "${actualProxy}" "${watchUrl}"`;
     
-    const info = JSON.parse(ytdlpOutput);
+    let ytdlpOutput = '';
+    let ytdlpStderr = '';
+    try {
+      ytdlpOutput = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 40000 });
+    } catch (e) {
+      ytdlpOutput = e.stdout?.toString() || '';
+      ytdlpStderr = e.stderr?.toString() || e.message;
+    }
+    
+    let info = {};
+    let parseError = null;
+    try {
+      info = JSON.parse(ytdlpOutput || '{}');
+    } catch (err) {
+      parseError = err.message;
+    }
+    
     const formatsCount = info.formats?.length || 0;
     const audioFormats = (info.formats || []).filter(f => f.acodec !== 'none' && f.vcodec === 'none');
     const languages = [...new Set(audioFormats.map(f => f.language || 'default'))];
@@ -48,10 +63,13 @@ router.get('/proxy-test', (req, res) => {
       ipInfo,
       diagnostics: {
         resolvedProxy: actualProxy,
-        title: info.title,
+        title: info.title || 'PARSE_FAILED',
         totalFormats: formatsCount,
         audioFormatsCount: audioFormats.length,
-        languages
+        languages,
+        parseError,
+        rawOutputLength: ytdlpOutput.length,
+        stderr: ytdlpStderr
       }
     });
   } catch (err) {
