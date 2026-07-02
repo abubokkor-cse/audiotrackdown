@@ -251,8 +251,12 @@ function extractAudioTracks(rawUrl) {
           }
         }
 
-        // Cache the result
-        cache.set(url, { data: result, timestamp: Date.now() });
+        // Cache the result — only cache multi-track results so degraded fallbacks don't pollute
+        if (result.audioTracks.length > 1) {
+          cache.set(url, { data: result, timestamp: Date.now() });
+        } else {
+          console.log(`⚠️ Skipping cache for single-track result (likely degraded fallback)`);
+        }
 
         console.log(`✅ Extracted ${result.audioTracks.length} audio tracks`);
         resolve(result);
@@ -588,4 +592,11 @@ function getStreamUrl(rawUrl, formatId) {
   });
 }
 
-module.exports = { extractAudioTracks, getStreamUrl, YTDLP_BIN };
+function clearCache() {
+  const size = cache.size;
+  cache.clear();
+  console.log(`🗑️ Cache cleared (${size} entries removed)`);
+  return size;
+}
+
+module.exports = { extractAudioTracks, getStreamUrl, clearCache, YTDLP_BIN };

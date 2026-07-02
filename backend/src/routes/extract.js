@@ -1,5 +1,5 @@
 const express = require('express');
-const { extractAudioTracks } = require('../services/ytdlp');
+const { extractAudioTracks, clearCache } = require('../services/ytdlp');
 const { validateVideoUrl } = require('../middleware/validate');
 const { extractionLimiter } = require('../middleware/rateLimit');
 
@@ -27,6 +27,15 @@ router.post('/', extractionLimiter, validateVideoUrl, async (req, res) => {
       error: error.message || 'Failed to extract audio tracks.',
     });
   }
+});
+
+/**
+ * POST /api/extract/clear-cache
+ * Clear the in-memory extraction cache (useful after deployments)
+ */
+router.post('/clear-cache', (req, res) => {
+  const cleared = clearCache();
+  res.json({ success: true, cleared });
 });
 
 module.exports = router;
