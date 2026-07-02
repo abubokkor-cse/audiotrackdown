@@ -17,6 +17,12 @@ const YTDLP_BIN = (() => {
       const parts = v.split('.').map(Number);
       if ((parts[0] || 0) * 10000 + (parts[1] || 0) * 100 + (parts[2] || 0) >= 2026060) {
         console.log(`[ytdlp] Using binary: ${c} (${v})`);
+        try {
+          const targets = execSync(`"${c}" --list-impersonate-targets 2>/dev/null`, { timeout: 3000 }).toString();
+          console.log(`[ytdlp] Impersonation status:\n${targets.split('\n').slice(0, 15).join('\n')}`);
+        } catch (e) {
+          console.log(`[ytdlp] Impersonation check failed: ${e.message}`);
+        }
         return c;
       }
     } catch { /* try next */ }
@@ -191,7 +197,7 @@ function extractAudioTracks(rawUrl) {
 
     const strategies = [
       // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
-      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
+      { useCookies: false, useImpersonate: true, useUserAgent: true, playerClient: 'all', label: 'all-impersonate' },
       // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked (returns at least the default/original track)
@@ -202,23 +208,47 @@ function extractAudioTracks(rawUrl) {
 
     (async () => {
       let lastError = null;
-      let stdout = '';
+      let bestResult = null;
+      let bestStdout = null;
+
       for (const strategy of strategies) {
         try {
           const args = buildArgs(strategy);
           const hasProxy = args.includes('--proxy');
           console.log(`[ytdlp] Running strategy "${strategy.label}" | proxy=${hasProxy} | ROTATING_PROXIES=${process.env.ROTATING_PROXIES ? 'SET(' + process.env.ROTATING_PROXIES.substring(0, 30) + '...)' : 'NOT SET'}`);
-          stdout = await runStrategy(args);
-          console.log(`[ytdlp] ✓ Strategy "${strategy.label}" succeeded`);
-          lastError = null;
-          break;
+          const stdout = await runStrategy(args);
+          console.log(`[ytdlp] ✓ Strategy "${strategy.label}" completed successfully`);
+          
+          const info = JSON.parse(stdout);
+          const result = processExtractedInfo(info);
+          
+          const allFmts = info.formats || [];
+          const audioOnly = allFmts.filter(f => f.acodec !== 'none' && f.vcodec === 'none');
+          const langs = [...new Set(audioOnly.map(f => f.language || 'default'))];
+          console.log(`[ytdlp] Strategy "${strategy.label}" raw formats: ${allFmts.length} total, ${audioOnly.length} audio-only, languages: [${langs.join(', ')}]`);
+
+          // If we found more than 1 language, we have a winner!
+          if (result.audioTracks.length > 1) {
+            console.log(`[ytdlp] Winning strategy "${strategy.label}" found with ${result.audioTracks.length} tracks!`);
+            bestResult = result;
+            bestStdout = stdout;
+            lastError = null;
+            break;
+          }
+
+          // Otherwise, save it as fallback but keep checking other strategies
+          if (!bestResult) {
+            bestResult = result;
+            bestStdout = stdout;
+          }
+          console.log(`[ytdlp] Strategy "${strategy.label}" returned only 1 track. Trying next strategy...`);
         } catch (err) {
           console.warn(`[ytdlp] ✗ Strategy "${strategy.label}" failed: ${err.message.split('\n')[0].substring(0, 120)}`);
           lastError = err;
         }
       }
 
-      if (lastError) {
+      if (lastError && !bestResult) {
         const errMsg = lastError.message || '';
         if (errMsg.includes('Video unavailable') || errMsg.includes('Private video')) {
           return reject(new Error('This video is private or unavailable.'));
@@ -233,26 +263,19 @@ function extractAudioTracks(rawUrl) {
       }
 
       try {
-        const info = JSON.parse(stdout);
-
-        // Debug: log raw format breakdown to diagnose multi-language issues
-        const allFmts = info.formats || [];
-        const audioOnly = allFmts.filter(f => f.acodec !== 'none' && f.vcodec === 'none');
-        const combined = allFmts.filter(f => f.acodec !== 'none' && f.vcodec !== 'none');
-        const langs = [...new Set(audioOnly.map(f => f.language || 'default'))];
-        console.log(`[ytdlp] Raw formats: ${allFmts.length} total, ${audioOnly.length} audio-only, ${combined.length} combined, languages: [${langs.join(', ')}]`);
-
-        const result = processExtractedInfo(info);
+        if (!bestResult) {
+          return reject(new Error('No results were returned by any strategy.'));
+        }
 
         // Cache the result — only cache multi-track results so degraded fallbacks don't pollute
-        if (result.audioTracks.length > 1) {
-          cache.set(url, { data: result, timestamp: Date.now() });
+        if (bestResult.audioTracks.length > 1) {
+          cache.set(url, { data: bestResult, timestamp: Date.now() });
         } else {
           console.log(`⚠️ Skipping cache for single-track result (likely degraded fallback)`);
         }
 
-        console.log(`✅ Extracted ${result.audioTracks.length} audio tracks`);
-        resolve(result);
+        console.log(`✅ Extracted ${bestResult.audioTracks.length} audio tracks`);
+        resolve(bestResult);
       } catch (parseError) {
         console.error('❌ Failed to parse yt-dlp output:', parseError.message);
         reject(new Error('Failed to process video data.'));
@@ -528,7 +551,7 @@ function getStreamUrl(rawUrl, formatId) {
 
     const strategies = [
       // 💻 Try ALL clients with Chrome TLS impersonation (needs curl_cffi in container)
-      { useCookies: false, useImpersonate: true, useUserAgent: false, playerClient: 'all', label: 'all-impersonate' },
+      { useCookies: false, useImpersonate: true, useUserAgent: true, playerClient: 'all', label: 'all-impersonate' },
       // 💻 Fallback to Chrome simulated headers if curl_cffi is missing
       { useCookies: false, useImpersonate: false, useUserAgent: true, playerClient: 'all', label: 'all-chrome-ua' },
       // 📱 Try mobile fallback if blocked
