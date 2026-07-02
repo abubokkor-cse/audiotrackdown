@@ -203,7 +203,10 @@ function extractAudioTracks(rawUrl) {
       let stdout = '';
       for (const strategy of strategies) {
         try {
-          stdout = await runStrategy(buildArgs(strategy));
+          const args = buildArgs(strategy);
+          const hasProxy = args.includes('--proxy');
+          console.log(`[ytdlp] Running strategy "${strategy.label}" | proxy=${hasProxy} | ROTATING_PROXIES=${process.env.ROTATING_PROXIES ? 'SET(' + process.env.ROTATING_PROXIES.substring(0, 30) + '...)' : 'NOT SET'}`);
+          stdout = await runStrategy(args);
           console.log(`[ytdlp] ✓ Strategy "${strategy.label}" succeeded`);
           lastError = null;
           break;
