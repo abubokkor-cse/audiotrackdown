@@ -1,6 +1,6 @@
 const { spawn, execSync } = require('child_process');
 const config = require('../config');
-const subtitleService = require('./subtitleService');
+
 
 // ── Resolve newest yt-dlp binary (same logic as subtitle.js + tts.js) ─────────
 const YTDLP_BIN = (() => {
@@ -144,10 +144,7 @@ function extractAudioTracks(rawUrl) {
           );
         }
         args.push(
-          '--extractor-args', `youtube:player_client=${playerClient}`,
-          '--write-subs',
-          '--write-auto-subs',
-          '--sub-langs', 'all'
+          '--extractor-args', `youtube:player_client=${playerClient}`
         );
       }
       if (useCookies) {
@@ -235,21 +232,6 @@ function extractAudioTracks(rawUrl) {
       try {
         const info = JSON.parse(stdout);
         const result = processExtractedInfo(info);
-
-        // Augment with Python InnerTube if subtitles are empty/undefined
-        if (isYouTubeUrl && (!result.subtitles || Object.keys(result.subtitles).length === 0)) {
-          console.log(`[ytdlp] yt-dlp returned 0 subtitles. Augmenting with Python InnerTube...`);
-          try {
-            const videoId = info.id;
-            if (videoId) {
-              const innerTubeSubs = await subtitleService.listYouTubeSubtitles(videoId);
-              result.subtitles = innerTubeSubs;
-              console.log(`[ytdlp] ✓ Subtitle list augmented successfully via InnerTube (${Object.keys(innerTubeSubs).length} languages)`);
-            }
-          } catch (err) {
-            console.warn(`[ytdlp] Failed to augment subtitles via InnerTube:`, err.message);
-          }
-        }
 
         // Cache the result — only cache multi-track results so degraded fallbacks don't pollute
         if (result.audioTracks.length > 1) {

@@ -11,6 +11,9 @@ const subtitleRoutes = require('./routes/subtitle');
 
 const app = express();
 
+// Trust Railway's reverse proxy (fixes express-rate-limit X-Forwarded-For error)
+app.set('trust proxy', 1);
+
 // ── Security ──────────────────────────────────────────────────────────
 setupSecurity(app);
 
