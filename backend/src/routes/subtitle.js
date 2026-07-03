@@ -270,7 +270,7 @@ router.get('/download', async (req, res) => {
       contentType     = 'text/srt; charset=utf-8';
       responseContent = formatToSrt(cleanedCues);
     } else if (ext === 'json') {
-      contentType     = 'application/json; charset=utf-8';
+      contentType     = 'application/octet-stream';
       responseContent = JSON.stringify({ cues: cleanedCues }, null, 2);
     } else {
       contentType     = 'text/vtt; charset=utf-8';
