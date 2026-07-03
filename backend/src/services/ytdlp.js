@@ -672,4 +672,4 @@ function clearCache() {
   return size;
 }
 
-module.exports = { extractAudioTracks, getStreamUrl, clearCache, YTDLP_BIN, BEST_CHROME_TARGET };
+module.exports = { extractAudioTracks, getStreamUrl, clearCache, YTDLP_BIN, BEST_CHROME_TARGET, getProxyUrl };

@@ -1,7 +1,7 @@
 const express = require('express');
 const https = require('https');
 const http = require('http');
-const { getStreamUrl, YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
+const { getStreamUrl, YTDLP_BIN, BEST_CHROME_TARGET, getProxyUrl } = require('../services/ytdlp');
 const { validateVideoUrl, validateFormatId } = require('../middleware/validate');
 const { downloadLimiter } = require('../middleware/rateLimit');
 const { v4: uuidv4 } = require('uuid');
@@ -103,54 +103,50 @@ router.get('/stream/:id', (req, res) => {
 
   console.log(`📥 Streaming: ${filename} (source format: ${ext})`);
 
-  // Transcode to MP3 on-the-fly using FFmpeg
-  if (finalExt === 'mp3' && ext !== 'mp3') {
-    console.log(`🎬 Transcoding on-the-fly to MP3: ${filename}`);
+  const isYouTubeUrl = download.originalUrl &&
+    (download.originalUrl.includes('youtube.com') || download.originalUrl.includes('youtu.be'));
+
+  if (isYouTubeUrl && download.originalUrl && download.formatId) {
+    const ytdlpArgs = [
+      '--no-update',
+      '--no-warnings',
+      '--no-playlist',
+      '--no-cache-dir',
+    ];
+
+    if (download.strategyUseImpersonate) {
+      ytdlpArgs.push('--impersonate', BEST_CHROME_TARGET);
+    }
+    if (download.strategyUseUserAgent) {
+      ytdlpArgs.push(
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        '--add-header', 'Accept-Language: en-US,en;q=0.9'
+      );
+    }
+    const playerClient = download.strategyPlayerClient || 'web';
+    ytdlpArgs.push('--extractor-args', `youtube:player_client=${playerClient}`);
+    if (download.strategyUseCookies) {
+      ytdlpArgs.push('--cookies-from-browser', 'chrome');
+    }
+    const proxyUrl = getProxyUrl();
+    if (proxyUrl) {
+      ytdlpArgs.push('--proxy', proxyUrl);
+    }
+    ytdlpArgs.push('-f', download.formatId);
+    ytdlpArgs.push('-o', '-'); // Output to stdout
+    ytdlpArgs.push(download.originalUrl);
+
+    const { spawn } = require('child_process');
+    const ytdlpProc = spawn(YTDLP_BIN, ytdlpArgs, {
+      env: { ...process.env }
+    });
 
     res.setHeader('Content-Type', mimetype);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
 
-    const { spawn } = require('child_process');
-
-    // 🚀 HIGH-SPEED PIPELINE: yt-dlp (with same strategy that worked) → FFmpeg → response
-    // yt-dlp handles YouTube's throttle bypass internally, giving full download speed.
-    const isYouTubeUrl = download.originalUrl &&
-      (download.originalUrl.includes('youtube.com') || download.originalUrl.includes('youtu.be'));
-
-    if (isYouTubeUrl && download.originalUrl && download.formatId) {
-      console.log(`🚀 Using yt-dlp → FFmpeg high-speed pipeline (cookies=${download.strategyUseCookies}, impersonate=${download.strategyUseImpersonate})`);
-
-      const ytdlpArgs = [
-        '--no-update',
-        '--no-warnings',
-        '--no-playlist',
-        '--no-cache-dir',
-      ];
-
-      // Reuse the EXACT strategy that succeeded during getStreamUrl
-      if (download.strategyUseImpersonate) {
-        ytdlpArgs.push('--impersonate', BEST_CHROME_TARGET);
-      }
-      if (download.strategyUseUserAgent) {
-        ytdlpArgs.push(
-          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          '--add-header', 'Accept-Language: en-US,en;q=0.9'
-        );
-      }
-      const playerClient = download.strategyPlayerClient || 'web';
-      ytdlpArgs.push('--extractor-args', `youtube:player_client=${playerClient}`);
-      if (download.strategyUseCookies) {
-        ytdlpArgs.push('--cookies-from-browser', 'chrome');
-      }
-      ytdlpArgs.push('-f', download.formatId);
-      ytdlpArgs.push('-o', '-'); // Output to stdout
-      ytdlpArgs.push(download.originalUrl);
-
-      const ytdlpProc = spawn(YTDLP_BIN, ytdlpArgs, {
-        env: { ...process.env }
-      });
-
+    if (finalExt === 'mp3' && ext !== 'mp3') {
+      console.log(`🎬 Transcoding on-the-fly to MP3: ${filename}`);
       const ffmpegProc = spawn('ffmpeg', [
         '-i', 'pipe:0',             // Read from stdin (yt-dlp stdout)
         '-vn',                      // Disable video
@@ -160,11 +156,9 @@ router.get('/stream/:id', (req, res) => {
         'pipe:1'                    // Stream output to stdout
       ]);
 
-      // Pipe: yt-dlp stdout → ffmpeg stdin → ffmpeg stdout → HTTP response
       ytdlpProc.stdout.pipe(ffmpegProc.stdin);
       ffmpegProc.stdout.pipe(res);
 
-      // Handle client disconnect
       req.on('close', () => {
         ytdlpProc.kill('SIGKILL');
         ffmpegProc.kill('SIGKILL');
@@ -179,10 +173,6 @@ router.get('/stream/:id', (req, res) => {
         console.error('❌ yt-dlp pipeline error:', err.message);
       });
 
-      ffmpegProc.stderr.on('data', (data) => {
-        // FFmpeg outputs progress to stderr — ignore unless debugging
-      });
-
       ffmpegProc.on('error', (err) => {
         console.error('❌ FFmpeg pipeline error:', err.message);
         if (!res.headersSent) {
@@ -190,110 +180,60 @@ router.get('/stream/:id', (req, res) => {
         }
       });
     } else {
-      // ⚠️ FALLBACK: Non-YouTube or missing data — use direct stream URL
-      console.log(`⚠️ Fallback: direct URL → FFmpeg for ${filename}`);
-
-      const ffmpeg = spawn('ffmpeg', [
-        '-i', 'pipe:0',
-        '-vn',
-        '-acodec', 'libmp3lame',
-        '-ab', '192k',
-        '-f', 'mp3',
-        'pipe:1'
-      ]);
-
-      ffmpeg.stdout.pipe(res);
-
-      const protocol = streamUrl.startsWith('https') ? https : http;
-      const proxyReq = protocol.get(streamUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*',
-          'Accept-Encoding': 'identity',
-        },
-      }, (proxyRes) => {
-        if (proxyRes.statusCode >= 400) {
-          console.error(`❌ Upstream stream error: ${proxyRes.statusCode}`);
-          if (!res.headersSent) {
-            res.status(502).json({ error: 'Failed to fetch audio stream.' });
-          }
-          ffmpeg.stdin.destroy();
-          return;
-        }
-        proxyRes.pipe(ffmpeg.stdin);
-        proxyRes.on('error', (err) => {
-          console.error('❌ Proxy stream error:', err.message);
-          ffmpeg.stdin.destroy();
-        });
-      });
-
-      proxyReq.on('error', (err) => {
-        console.error('❌ Proxy request error:', err.message);
-        ffmpeg.stdin.destroy();
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Failed to connect to audio source.' });
-        }
-      });
+      console.log(`🚀 Streaming raw format directly: ${filename}`);
+      ytdlpProc.stdout.pipe(res);
 
       req.on('close', () => {
-        proxyReq.destroy();
-        ffmpeg.kill('SIGKILL');
+        ytdlpProc.kill('SIGKILL');
       });
 
-      ffmpeg.on('error', (err) => {
-        console.error('❌ FFmpeg error:', err.message);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Audio transcoding failed.' });
-        }
+      ytdlpProc.stderr.on('data', (data) => {
+        const msg = data.toString().trim();
+        if (msg) console.log(`[yt-dlp pipe] ${msg}`);
+      });
+
+      ytdlpProc.on('error', (err) => {
+        console.error('❌ yt-dlp pipeline error:', err.message);
       });
     }
-
-    return;
-  }
-
-  // Proxy the stream normally if no transcoding is needed
-  const protocol = streamUrl.startsWith('https') ? https : http;
-
-  const proxyReq = protocol.get(streamUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': '*/*',
-      'Accept-Encoding': 'identity',
-      'Range': 'bytes=0-',
-    },
-  }, (proxyRes) => {
-    if (proxyRes.statusCode >= 400) {
-      console.error(`❌ Upstream error: ${proxyRes.statusCode}`);
-      return res.status(502).json({ error: 'Failed to fetch audio from source.' });
-    }
-
+  } else {
+    // ⚠️ FALLBACK: Non-YouTube or missing data — use direct stream URL via Node protocol.get
+    console.log(`⚠️ Fallback: direct URL proxy for ${filename}`);
     res.setHeader('Content-Type', mimetype);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
-    if (proxyRes.headers['content-length']) {
-      res.setHeader('Content-Length', proxyRes.headers['content-length']);
-    }
 
-    proxyRes.pipe(res);
+    const protocol = streamUrl.startsWith('https') ? https : http;
+    const proxyReq = protocol.get(streamUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Encoding': 'identity',
+      },
+    }, (proxyRes) => {
+      if (proxyRes.statusCode >= 400) {
+        console.error(`❌ Upstream stream error: ${proxyRes.statusCode}`);
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Failed to fetch audio stream.' });
+        }
+        return;
+      }
+      proxyRes.pipe(res);
+      proxyRes.on('error', (err) => {
+        console.error('❌ Proxy stream error:', err.message);
+      });
+    });
 
-    proxyRes.on('error', (err) => {
-      console.error('❌ Stream error:', err.message);
+    proxyReq.on('error', (err) => {
+      console.error('❌ Proxy request error:', err.message);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Stream interrupted.' });
+        res.status(500).json({ error: 'Failed to connect to audio source.' });
       }
     });
-  });
 
-  proxyReq.on('error', (err) => {
-    console.error('❌ Proxy request error:', err.message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to connect to audio source.' });
-    }
-  });
-
-  // Handle client disconnect
-  req.on('close', () => {
-    proxyReq.destroy();
-  });
+    req.on('close', () => {
+      proxyReq.destroy();
+    });
+  }
 });
 
 module.exports = router;
