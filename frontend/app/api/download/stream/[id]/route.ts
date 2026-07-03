@@ -13,10 +13,28 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Download ID is required' }, { status: 400 });
     }
 
-    // Redirect directly to the Express backend stream route.
-    // This avoids Vercel serverless function timeouts for long MP3 transcoding.
-    const publicBackendUrl = process.env.NEXT_PUBLIC_API_URL || BACKEND_URL;
-    return NextResponse.redirect(`${publicBackendUrl}/api/download/stream/${id}`);
+    // Call the backend stream route
+    const res = await fetch(`${BACKEND_URL}/api/download/stream/${id}`, {
+      cache: 'no-store'
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return NextResponse.json(
+        { success: false, error: data.error || 'Failed to fetch stream from backend' },
+        { status: res.status }
+      );
+    }
+
+    // Return the response streaming body directly to the client browser.
+    // This keeps the download on the same origin (avoiding cross-origin redirect download block).
+    return new Response(res.body, {
+      headers: {
+        'Content-Type': res.headers.get('Content-Type') || 'audio/mpeg',
+        'Content-Disposition': res.headers.get('Content-Disposition') || 'attachment',
+        'Content-Length': res.headers.get('Content-Length') || '',
+      },
+    });
   } catch (error: any) {
     console.error('[API Stream Proxy Error]:', error);
     return NextResponse.json({ success: false, error: error.message || 'Internal server error' }, { status: 500 });
