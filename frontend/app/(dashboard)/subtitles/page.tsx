@@ -373,6 +373,7 @@ function SubtitlesPageContent() {
   const [adModalType, setAdModalType] = useState<'extract' | 'download' | 'subtitle'>('extract');
   const [adTargetTrack, setAdTargetTrack] = useState<any>(null);
   const [adDownloadUrl, setAdDownloadUrl] = useState<string>('');
+  const [preparingSubtitle, setPreparingSubtitle] = useState<{ [key: string]: boolean }>({});
 
   const { data: limits } = useSWR('/api/user/limits', fetcher, {
     revalidateOnFocus: true,
@@ -513,7 +514,10 @@ function SubtitlesPageContent() {
     }
   };
 
-  const handleSubtitleDownloadClick = (langCode: string, fmt: string) => {
+  const handleSubtitleDownloadClick = async (langCode: string, fmt: string) => {
+    const key = `${langCode}-${fmt}`;
+    if (preparingSubtitle[key]) return;
+
     const sub = result.subtitles[langCode];
     const videoId = result.video.id;
     const isYouTube = url.includes('youtube') || url.includes('youtu.be') || initialUrl.includes('youtube') || initialUrl.includes('youtu.be');
@@ -538,13 +542,36 @@ function SubtitlesPageContent() {
       setAdModalType('subtitle');
       setAdModalOpen(true);
     } else {
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = '';
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
+      setPreparingSubtitle(prev => ({ ...prev, [key]: true }));
+      setError('');
+      try {
+        const res = await fetch(downloadUrl);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to download subtitle');
+        }
+        const blob = await res.blob();
+        const disposition = res.headers.get('content-disposition');
+        let filename = `${result.video.title || 'subtitle'}-${langCode}.${fmt === 'json3' ? 'json' : fmt}`;
+        if (disposition && disposition.includes('filename=')) {
+          const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = decodeURIComponent(filenameMatch[1]);
+          }
+        }
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setPreparingSubtitle(prev => ({ ...prev, [key]: false }));
+      }
     }
   };
 
@@ -879,21 +906,39 @@ function SubtitlesPageContent() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleSubtitleDownloadClick(langCode, 'vtt')}
-                          className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer"
+                          disabled={preparingSubtitle[`${langCode}-vtt`]}
+                          className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                         >
-                          <FileText className="w-3.5 h-3.5" /> VTT
+                          {preparingSubtitle[`${langCode}-vtt`] ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5" />
+                          )}
+                          VTT
                         </button>
                         <button
                           onClick={() => handleSubtitleDownloadClick(langCode, 'srt')}
-                          className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer"
+                          disabled={preparingSubtitle[`${langCode}-srt`]}
+                          className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                         >
-                          <FileText className="w-3.5 h-3.5" /> SRT
+                          {preparingSubtitle[`${langCode}-srt`] ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5" />
+                          )}
+                          SRT
                         </button>
                         <button
                           onClick={() => handleSubtitleDownloadClick(langCode, 'json3')}
-                          className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer"
+                          disabled={preparingSubtitle[`${langCode}-json3`]}
+                          className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                         >
-                          <FileText className="w-3.5 h-3.5" /> JSON
+                          {preparingSubtitle[`${langCode}-json3`] ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5" />
+                          )}
+                          JSON
                         </button>
                       </div>
                     </div>
