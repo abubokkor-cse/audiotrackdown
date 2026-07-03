@@ -27,15 +27,23 @@ def format_to_vtt(cues):
         out += f"{start_str} --> {end_str}\n{text}\n\n"
     return out.strip() + "\n"
 
+import os
+
 def main():
     if len(sys.argv) < 3:
         print(json.dumps({"success": False, "error": "Missing video_id or target_lang"}))
         sys.exit(1)
 
+    # Resolve rotating proxy from environment
+    proxy = os.environ.get('ROTATING_PROXIES') or os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
+    proxies = None
+    if proxy:
+        proxies = {"http": proxy, "https": proxy}
+
     if sys.argv[1] == '--list':
         video_id = sys.argv[2]
         try:
-            list_transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+            list_transcripts = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
             transcripts_data = []
             for t in list_transcripts:
                 transcripts_data.append({
@@ -61,7 +69,7 @@ def main():
     target_lang = sys.argv[2]
 
     try:
-        list_transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+        list_transcripts = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
         
         # 1. Try to find a direct match
         try:

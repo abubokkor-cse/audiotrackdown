@@ -204,8 +204,16 @@ function fetchYouTubeSubtitles(videoId, langCode) {
   return new Promise((resolve, reject) => {
     console.log(`[subtitleService] Fetching transcript via InnerTube for video: ${videoId}, lang: ${langCode}`);
 
+    const env = { ...process.env };
+    if (process.env.ROTATING_PROXIES) {
+      env.HTTP_PROXY = process.env.ROTATING_PROXIES;
+      env.HTTPS_PROXY = process.env.ROTATING_PROXIES;
+      env.http_proxy = process.env.ROTATING_PROXIES;
+      env.https_proxy = process.env.ROTATING_PROXIES;
+    }
+
     const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, videoId, langCode], {
-      env: { ...process.env }
+      env
     });
 
     let stdout = '';
@@ -302,8 +310,16 @@ function listYouTubeSubtitles(videoId) {
   return new Promise((resolve, reject) => {
     console.log(`[subtitleService] Listing transcripts via InnerTube for video: ${videoId}`);
 
+    const env = { ...process.env };
+    if (process.env.ROTATING_PROXIES) {
+      env.HTTP_PROXY = process.env.ROTATING_PROXIES;
+      env.HTTPS_PROXY = process.env.ROTATING_PROXIES;
+      env.http_proxy = process.env.ROTATING_PROXIES;
+      env.https_proxy = process.env.ROTATING_PROXIES;
+    }
+
     const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, '--list', videoId], {
-      env: { ...process.env }
+      env
     });
 
     let stdout = '';
