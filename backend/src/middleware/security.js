@@ -40,12 +40,22 @@ function setupSecurity(app) {
     })
   );
 
-  // CORS — restrict to frontend origin
+  // CORS — restrict to frontend origin (allowing both www. and naked domain in production)
+  const productionOrigins = [config.frontendUrl];
+  try {
+    const parsed = new URL(config.frontendUrl);
+    if (parsed.hostname.startsWith('www.')) {
+      productionOrigins.push(`${parsed.protocol}//${parsed.hostname.substring(4)}`);
+    } else {
+      productionOrigins.push(`${parsed.protocol}//www.${parsed.hostname}`);
+    }
+  } catch { /* ignore invalid URL configurations */ }
+
   app.use(
     cors({
       origin: config.nodeEnv === 'development'
         ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
-        : [config.frontendUrl],
+        : productionOrigins,
       methods: ['GET', 'POST'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Fingerprint', 'X-Admin-Password', 'X-Admin-2FA-Code'],
       credentials: true,
