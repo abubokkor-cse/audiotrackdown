@@ -88,7 +88,8 @@ router.get('/info', abuseLimiter, async (req, res) => {
       let err = '';
       proc.stdout.on('data', d => { out += d.toString(); });
       proc.stderr.on('data', d => { err += d.toString(); });
-      const timer = setTimeout(() => { proc.kill('SIGTERM'); reject(new Error('timeout')); }, 15000);
+      const timeoutMs = config.ytdlp?.timeoutMs || 45000;
+      const timer = setTimeout(() => { proc.kill('SIGTERM'); reject(new Error('timeout')); }, timeoutMs);
       proc.on('close', code => {
         clearTimeout(timer);
         if (code === 0) resolve(out);
