@@ -249,6 +249,7 @@ function fetchYouTubeSubtitles(videoId, langCode) {
 
     proc.on('close', async (code) => {
       if (code !== 0) {
+        console.error(`[subtitleService] Python fetch script failed. Code: ${code}, Stdout: "${stdout.trim()}", Stderr: "${stderr.trim()}"`);
         let errMsg = `Process exited with code ${code}`;
         try {
           const parsed = JSON.parse(stdout.trim());
@@ -330,11 +331,13 @@ function listYouTubeSubtitles(videoId, originalOnly = false) {
     console.log(`[subtitleService] Listing transcripts via InnerTube for video: ${videoId}`);
 
     const env = { ...process.env };
-    if (process.env.ROTATING_PROXIES) {
-      env.HTTP_PROXY = process.env.ROTATING_PROXIES;
-      env.HTTPS_PROXY = process.env.ROTATING_PROXIES;
-      env.http_proxy = process.env.ROTATING_PROXIES;
-      env.https_proxy = process.env.ROTATING_PROXIES;
+    const proxyUrl = getProxyUrl();
+    if (proxyUrl) {
+      env.ROTATING_PROXIES = proxyUrl;
+      env.HTTP_PROXY = proxyUrl;
+      env.HTTPS_PROXY = proxyUrl;
+      env.http_proxy = proxyUrl;
+      env.https_proxy = proxyUrl;
     }
 
     const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, '--list', videoId], {
@@ -349,6 +352,7 @@ function listYouTubeSubtitles(videoId, originalOnly = false) {
 
     proc.on('close', (code) => {
       if (code !== 0) {
+        console.error(`[subtitleService] Python list script failed. Code: ${code}, Stdout: "${stdout.trim()}", Stderr: "${stderr.trim()}"`);
         let errMsg = `Process exited with code ${code}`;
         try {
           const parsed = JSON.parse(stdout.trim());
