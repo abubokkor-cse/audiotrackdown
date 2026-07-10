@@ -576,6 +576,7 @@ function SubtitlesPageContent() {
           id: data.video.id,
         },
         audioTracks: [],
+        subtitles: data.subtitles || {},
       });
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
