@@ -70,7 +70,7 @@ def main():
                     "is_generated": t.is_generated,
                     "is_translatable": t.is_translatable,
                     "translation_languages": [
-                        {"language_code": tl["language_code"], "language": tl["language"]}
+                        {"language_code": tl.language_code, "language": tl.language}
                         for tl in (t.translation_languages if t.is_translatable else [])
                     ]
                 })
