@@ -101,30 +101,30 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     }
   }, [isOpen]);
 
-  // Dynamically load Adsterra 300x250 Banner scripts inside ref container
-  useEffect(() => {
-    if (isOpen && bannerRef.current) {
-      bannerRef.current.innerHTML = '';
-
-      const confScript = document.createElement('script');
-      confScript.innerHTML = `
-        atOptions = {
-          'key' : '2b84ee378c9cb53ae6db891eb5f00e6a',
-          'format' : 'iframe',
-          'height' : 250,
-          'width' : 300,
-          'params' : {}
-        };
-      `;
-
-      const invokeScript = document.createElement('script');
-      invokeScript.src = 'https://www.highperformanceformat.com/2b84ee378c9cb53ae6db891eb5f00e6a/invoke.js';
-      invokeScript.async = true;
-
-      bannerRef.current.appendChild(confScript);
-      bannerRef.current.appendChild(invokeScript);
-    }
-  }, [isOpen, adRotation]);
+  // Dynamically load Adsterra 300x250 Banner scripts inside ref container (DISABLED for now)
+  // useEffect(() => {
+  //   if (isOpen && bannerRef.current) {
+  //     bannerRef.current.innerHTML = '';
+  // 
+  //     const confScript = document.createElement('script');
+  //     confScript.innerHTML = `
+  //       atOptions = {
+  //         'key' : '2b84ee378c9cb53ae6db891eb5f00e6a',
+  //         'format' : 'iframe',
+  //         'height' : 250,
+  //         'width' : 300,
+  //         'params' : {}
+  //       };
+  //     `;
+  // 
+  //     const invokeScript = document.createElement('script');
+  //     invokeScript.src = 'https://www.highperformanceformat.com/2b84ee378c9cb53ae6db891eb5f00e6a/invoke.js';
+  //     invokeScript.async = true;
+  // 
+  //     bannerRef.current.appendChild(confScript);
+  //     bannerRef.current.appendChild(invokeScript);
+  //   }
+  // }, [isOpen, adRotation]);
 
   const getExtractionProgressText = () => {
     const isSubtitle = title.toLowerCase().includes('subtitle');
@@ -200,13 +200,16 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     return () => clearInterval(interval);
   }, [isOpen, type]);
 
-  const triggerSmartlinkOnce = () => {
-    const smartlinkOpened = sessionStorage.getItem('atd_smartlink_opened');
-    if (!smartlinkOpened) {
-      sessionStorage.setItem('atd_smartlink_opened', 'true');
-      window.open('https://degreeeruptionpredator.com/ahijxi03?key=f6dd3af4cba03cac352ac9823d404ac6', '_blank');
-    }
-  };
+  // ── SMARTLINK DISABLED — get traffic first, monetize later ──
+  // To re-enable: uncomment the code below and remove the empty function.
+  const triggerSmartlinkOnce = () => {};
+  // const triggerSmartlinkOnce = () => {
+  //   const smartlinkOpened = sessionStorage.getItem('atd_smartlink_opened');
+  //   if (!smartlinkOpened) {
+  //     sessionStorage.setItem('atd_smartlink_opened', 'true');
+  //     window.open('https://degreeeruptionpredator.com/ahijxi03?key=f6dd3af4cba03cac352ac9823d404ac6', '_blank');
+  //   }
+  // };
 
   if (!isOpen) return null;
 

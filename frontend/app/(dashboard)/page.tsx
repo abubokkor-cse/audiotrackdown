@@ -101,30 +101,30 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     }
   }, [isOpen]);
 
-  // Dynamically load Adsterra 300x250 Banner scripts inside ref container
-  useEffect(() => {
-    if (isOpen && bannerRef.current) {
-      bannerRef.current.innerHTML = '';
-
-      const confScript = document.createElement('script');
-      confScript.innerHTML = `
-        atOptions = {
-          'key' : '2b84ee378c9cb53ae6db891eb5f00e6a',
-          'format' : 'iframe',
-          'height' : 250,
-          'width' : 300,
-          'params' : {}
-        };
-      `;
-
-      const invokeScript = document.createElement('script');
-      invokeScript.src = 'https://www.highperformanceformat.com/2b84ee378c9cb53ae6db891eb5f00e6a/invoke.js';
-      invokeScript.async = true;
-
-      bannerRef.current.appendChild(confScript);
-      bannerRef.current.appendChild(invokeScript);
-    }
-  }, [isOpen, adRotation]);
+  // Dynamically load Adsterra 300x250 Banner scripts inside ref container (DISABLED for now)
+  // useEffect(() => {
+  //   if (isOpen && bannerRef.current) {
+  //     bannerRef.current.innerHTML = '';
+  // 
+  //     const confScript = document.createElement('script');
+  //     confScript.innerHTML = `
+  //       atOptions = {
+  //         'key' : '2b84ee378c9cb53ae6db891eb5f00e6a',
+  //         'format' : 'iframe',
+  //         'height' : 250,
+  //         'width' : 300,
+  //         'params' : {}
+  //       };
+  //     `;
+  // 
+  //     const invokeScript = document.createElement('script');
+  //     invokeScript.src = 'https://www.highperformanceformat.com/2b84ee378c9cb53ae6db891eb5f00e6a/invoke.js';
+  //     invokeScript.async = true;
+  // 
+  //     bannerRef.current.appendChild(confScript);
+  //     bannerRef.current.appendChild(invokeScript);
+  //   }
+  // }, [isOpen, adRotation]);
 
   const getExtractionProgressText = () => {
     const isSubtitle = title.toLowerCase().includes('subtitle');
@@ -224,13 +224,16 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
 
   const downloadBtnLabel = type === 'subtitle' ? 'Download Subtitles' : 'Download MP3';
 
-  const triggerSmartlinkOnce = () => {
-    const smartlinkOpened = sessionStorage.getItem('atd_smartlink_opened');
-    if (!smartlinkOpened) {
-      sessionStorage.setItem('atd_smartlink_opened', 'true');
-      window.open('https://degreeeruptionpredator.com/ahijxi03?key=f6dd3af4cba03cac352ac9823d404ac6', '_blank');
-    }
-  };
+  // ── SMARTLINK DISABLED — get traffic first, monetize later ──
+  // To re-enable: uncomment the code below and remove the empty function.
+  const triggerSmartlinkOnce = () => {};
+  // const triggerSmartlinkOnce = () => {
+  //   const smartlinkOpened = sessionStorage.getItem('atd_smartlink_opened');
+  //   if (!smartlinkOpened) {
+  //     sessionStorage.setItem('atd_smartlink_opened', 'true');
+  //     window.open('https://degreeeruptionpredator.com/ahijxi03?key=f6dd3af4cba03cac352ac9823d404ac6', '_blank');
+  //   }
+  // };
 
   // ── Poll backend status until the file is ACTUALLY ready ──────────────
   // The backend transcodes asynchronously. The stream URL returns a JSON
@@ -319,24 +322,18 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
           </div>
           <div className="px-6 py-5 flex flex-col items-center gap-3 text-center">
             <button
-              onClick={async () => {
+              onClick={() => {
                 triggerSmartlinkOnce();
                 try {
-                  // Blob download — ensures the browser saves audio, not JSON
-                  const fileRes = await fetch(directStreamUrl);
-                  if (!fileRes.ok) throw new Error('Download failed');
-                  const blob = await fileRes.blob();
-                  const blobUrl = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = blobUrl;
-                  link.download = '';
-                  link.style.display = 'none';
-                  document.body.appendChild(link);
-                  link.click();
-                  setTimeout(() => {
-                    if (document.body.contains(link)) document.body.removeChild(link);
-                    window.URL.revokeObjectURL(blobUrl);
-                  }, 1000);
+                  // Direct downloads (M4A/WebM) come from YouTube's CDN.
+                  // We CANNOT use fetch()+blob here — YouTube's CDN does not
+                  // send CORS headers, so the browser blocks the response.
+                  // Open in a NEW tab so the user's app stays open. The CDN
+                  // serves the audio inline, so the browser will PLAY it —
+                  // the user saves via Ctrl+S.
+                  if (downloadUrl) {
+                    window.open(downloadUrl, '_blank');
+                  }
                 } catch (e) { console.error(e); }
                 onClose();
               }}
@@ -345,7 +342,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
               <Download className="w-5 h-5" />
               Download Audio File
             </button>
-            <p className="text-[11px] text-gray-400">Click the button above to save your audio file.</p>
+            <p className="text-[11px] text-gray-400">A new tab will open. If nothing happens, check your pop-up blocker.</p>
             <p className="text-[11px] text-gray-400 mt-1">
               Tired of ads?{' '}
               <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }} className="text-indigo-600 font-bold hover:underline">
