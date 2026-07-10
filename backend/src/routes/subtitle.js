@@ -296,13 +296,6 @@ router.get('/download', abuseLimiter, async (req, res) => {
         const brief = err.message.split('\n')[0].substring(0, 120);
         console.warn(`[subtitle] ✗ Strategy "${strategy.label}" failed: ${brief}`);
         lastError = err;
-        
-        // Fast-fail: if we hit a 429 Rate Limit error, other strategies will likely fail too.
-        // Break early to trigger the Python InnerTube fallback immediately and save time.
-        if (err.message.includes('429')) {
-          console.log('[subtitle] 429 Rate limit detected. Skipping remaining strategies to fallback instantly.');
-          break;
-        }
 
         // Wipe partial files before next attempt
         try {
