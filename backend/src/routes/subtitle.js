@@ -136,7 +136,7 @@ router.get('/download', abuseLimiter, async (req, res) => {
         '--add-header', 'Accept-Language:en-US,en;q=0.9',
         '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         '--sleep-requests', '1',   // throttle to avoid 429
-        '--extractor-args', 'youtube:skip=hls,dash',
+        '--extractor-args', 'youtube:player_client=web_embedded,android&skip=hls,dash',
       ];
 
       if (useImpersonate) {
@@ -240,7 +240,7 @@ router.get('/download', abuseLimiter, async (req, res) => {
       rawVtt = await subtitleService.fetchYouTubeSubtitles(videoId, langCode);
       console.log(`[subtitle] ✓ Python InnerTube fallback succeeded for video: ${videoId}`);
     } catch (innerTubeErr) {
-      console.error('[subtitle] Both yt-dlp and Python InnerTube fallback failed.');
+      console.error('[subtitle] Both yt-dlp and Python InnerTube fallback failed:', innerTubeErr);
       const msg = innerTubeErr.message || '';
       if (msg.includes('429') || msg.includes('Too Many Requests')) {
         return res.status(503).json({
