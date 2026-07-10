@@ -46,12 +46,23 @@ function setupSecurity(app) {
     frontendUrl = frontendUrl.slice(0, -1);
   }
 
-  const productionOrigins = [frontendUrl];
+  // Hardcode actual production domains so they are ALWAYS allowed,
+  // preventing CORS blocks even if FRONTEND_URL is missing or misconfigured on Railway.
+  const productionOrigins = [
+    'https://www.audiotrackdown.com',
+    'https://audiotrackdown.com'
+  ];
+
   if (frontendUrl && frontendUrl.startsWith('http')) {
+    if (!productionOrigins.includes(frontendUrl)) {
+      productionOrigins.push(frontendUrl);
+    }
     if (frontendUrl.includes('://www.')) {
-      productionOrigins.push(frontendUrl.replace('://www.', '://'));
+      const nonWww = frontendUrl.replace('://www.', '://');
+      if (!productionOrigins.includes(nonWww)) productionOrigins.push(nonWww);
     } else {
-      productionOrigins.push(frontendUrl.replace('://', '://www.'));
+      const www = frontendUrl.replace('://', '://www.');
+      if (!productionOrigins.includes(www)) productionOrigins.push(www);
     }
   }
 
