@@ -29,6 +29,36 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Map language code to country flag emoji
+// Language codes like 'en' → 'GB', 'fr' → 'FR', etc.
+const LANG_TO_COUNTRY: Record<string, string> = {
+  af: 'ZA', ak: 'GH', sq: 'AL', am: 'ET', ar: 'SA', hy: 'AM', as: 'IN',
+  ay: 'BO', az: 'AZ', bn: 'BD', ba: 'RU', eu: 'ES', be: 'BY', bs: 'BA',
+  bg: 'BG', ca: 'ES', ceb: 'PH', ny: 'MW', 'zh-Hans': 'CN', 'zh-Hant': 'TW',
+  co: 'FR', hr: 'HR', cs: 'CZ', da: 'DK', dv: 'MV', nl: 'NL', en: 'GB',
+  'en-US': 'US', 'en-GB': 'GB', eo: 'EU', et: 'EE', ee: 'GH', fi: 'FI',
+  fr: 'FR', 'fr-FR': 'FR', fy: 'NL', gl: 'ES', ka: 'GE', de: 'DE',
+  'de-DE': 'DE', el: 'GR', gu: 'IN', ht: 'HT', ha: 'NG', haw: 'US',
+  iw: 'IL', he: 'IL', hi: 'IN', hmn: 'CN', hu: 'HU', is: 'IS', ig: 'NG',
+  id: 'ID', ga: 'IE', it: 'IT', ja: 'JP', jw: 'ID', kn: 'IN', kk: 'KZ',
+  km: 'KH', rw: 'RW', ko: 'KR', ku: 'IQ', ky: 'KG', lo: 'LA', la: 'VA',
+  lv: 'LV', lt: 'LT', lb: 'LU', mk: 'MK', mg: 'MG', ms: 'MY', ml: 'IN',
+  mt: 'MT', mi: 'NZ', mr: 'IN', mn: 'MN', my: 'MM', ne: 'NP', no: 'NO',
+  or: 'IN', ps: 'AF', fa: 'IR', pl: 'PL', 'pt-BR': 'BR', pt: 'PT',
+  pa: 'IN', ro: 'RO', ru: 'RU', sm: 'WS', gd: 'GB', sr: 'RS', st: 'ZA',
+  sn: 'ZW', sd: 'PK', si: 'LK', sk: 'SK', sl: 'SI', so: 'SO', 'es-US': 'US',
+  es: 'ES', su: 'ID', sw: 'KE', sv: 'SE', tg: 'TJ', ta: 'IN', tt: 'RU',
+  te: 'IN', th: 'TH', ti: 'ET', ts: 'ZA', tr: 'TR', tk: 'TM', uk: 'UA',
+  ur: 'PK', ug: 'CN', uz: 'UZ', vi: 'VN', cy: 'GB', xh: 'ZA', yi: 'IL',
+  yo: 'NG', zu: 'ZA',
+};
+
+function getLangFlag(code: string): string {
+  const country = LANG_TO_COUNTRY[code] || LANG_TO_COUNTRY[code.split('-')[0]];
+  if (!country) return '🌐';
+  return country.split('').map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join('');
+}
+
 const AD_DETAILS = {
   extract: {
     title: 'Play Free Strategy Games Online!',
@@ -1052,7 +1082,7 @@ function SubtitlesPageContent() {
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{sub.flag}</span>
+                          <span className="text-xl">{sub.flag || getLangFlag(langCode)}</span>
                           <span className="font-bold text-gray-800 text-sm">{sub.langName}</span>
                           <span className="text-gray-400 text-xs">({langCode})</span>
                         </div>
