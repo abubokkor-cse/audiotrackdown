@@ -64,25 +64,26 @@ router.get('/info', abuseLimiter, async (req, res) => {
   try {
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const proxyUrl = getProxyUrl();
-    const args = [
-      '--no-update', '--no-warnings',
-      '--dump-single-json',  // only metadata, no download
-      '--skip-download',
-      '--no-playlist',
-      '--extractor-args', 'youtube:player_client=web_embedded&skip=hls,dash',
-      '--impersonate', BEST_CHROME_TARGET,
-    ];
 
-    // DataImpulse is a rotating residential proxy — each request gets its own IP.
-    // So adding proxy here does NOT compete with subtitle download requests.
-    if (proxyUrl) {
-      args.push('--proxy', proxyUrl);
-    }
+    const buildArgs = ({ useImpersonate = true, playerClient = 'web_embedded' } = {}) => {
+      const args = [
+        '--no-update', '--no-warnings',
+        '--dump-single-json',  // only metadata, no download
+        '--skip-download',
+        '--no-playlist',
+        '--extractor-args', `youtube:player_client=${playerClient}&skip=hls,dash`,
+      ];
+      if (useImpersonate) {
+        args.push('--impersonate', BEST_CHROME_TARGET);
+      }
+      if (proxyUrl) {
+        args.push('--proxy', proxyUrl);
+      }
+      args.push(watchUrl);
+      return args;
+    };
 
-    args.push(watchUrl);
-
-
-    const stdout = await new Promise((resolve, reject) => {
+    const runYtdlp = (args) => new Promise((resolve, reject) => {
       const proc = spawn(YTDLP_BIN, args, { env: { ...process.env } });
       let out = '';
       let err = '';
@@ -97,6 +98,30 @@ router.get('/info', abuseLimiter, async (req, res) => {
       });
       proc.on('error', reject);
     });
+
+    const strategies = [
+      { useImpersonate: true,  playerClient: 'web_embedded' },
+      { useImpersonate: true,  playerClient: 'ios'          },
+      { useImpersonate: false, playerClient: 'android'      },
+    ];
+
+    let lastError = null;
+    let stdout = '';
+    for (const strategy of strategies) {
+      try {
+        stdout = await runYtdlp(buildArgs(strategy));
+        lastError = null;
+        break;
+      } catch (err) {
+        const brief = err.message.split('\n')[0].substring(0, 120);
+        console.warn(`[subtitle/info] ✗ Strategy "${strategy.playerClient}" failed: ${brief}`);
+        lastError = err;
+        // Wait 2 seconds before retry to prevent anti-burst blocks
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    if (lastError) throw lastError;
 
     const info = JSON.parse(stdout);
     return res.json({
