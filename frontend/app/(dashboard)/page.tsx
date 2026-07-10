@@ -288,9 +288,13 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
 
   // Track whether the subtitle/MP3 download button is actively fetching
   const [modalDownloading, setModalDownloading] = useState(false);
+  const [modalDownloadError, setModalDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen) setModalDownloading(false);
+    if (!isOpen) {
+      setModalDownloading(false);
+      setModalDownloadError(null);
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -421,9 +425,16 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
                   triggerSmartlinkOnce();
                   setModalDownloading(true);
                   try {
-                    // Fetch as blob so the browser saves it as audio, not JSON
                     const fileRes = await fetch(directStreamUrl);
-                    if (!fileRes.ok) throw new Error('Download failed');
+                    const contentType = fileRes.headers.get('content-type') || '';
+
+                    // If backend returned JSON, the file isn't ready or errored.
+                    // Don't save JSON as a file — show error instead.
+                    if (!fileRes.ok || contentType.includes('application/json')) {
+                      const errData = await fileRes.json().catch(() => ({}));
+                      throw new Error(errData.error || 'File not ready yet, please try again.');
+                    }
+
                     const blob = await fileRes.blob();
                     const blobUrl = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -436,8 +447,9 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
                       if (document.body.contains(link)) document.body.removeChild(link);
                       window.URL.revokeObjectURL(blobUrl);
                     }, 1000);
-                  } catch (err) {
+                  } catch (err: any) {
                     console.error('[download] Manual download failed:', err);
+                    setModalDownloadError(err.message || 'Download failed. Please try again.');
                   } finally {
                     setModalDownloading(false);
                   }
@@ -456,6 +468,9 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
                   </>
                 )}
               </button>
+              {modalDownloadError && (
+                <p className="text-xs text-red-500 mt-1">{modalDownloadError}</p>
+              )}
               <p className="text-[11px] text-gray-400 mt-1">
                 Tired of ads?{' '}
                 <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}

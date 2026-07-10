@@ -12,13 +12,13 @@ export const metadata: Metadata = {
     icon: '/icon.svg',
   },
   keywords: [
-    'youtube audio extractor', 
-    'facebook audio downloader', 
-    'download youtube audio mp3', 
-    'youtube dubbed audio download', 
-    'download youtube subtitles', 
-    'youtube srt download', 
-    'youtube caption downloader', 
+    'youtube audio extractor',
+    'facebook audio downloader',
+    'download youtube audio mp3',
+    'youtube dubbed audio download',
+    'download youtube subtitles',
+    'youtube srt download',
+    'youtube caption downloader',
     'facebook video mp3 downloader',
     'youtube audio track download',
     'subtitle download from youtube',
@@ -41,6 +41,12 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AudioTrackDown — YouTube & Facebook Audio & Subtitle Downloader',
     description: 'Download audio tracks, dubbed voices, and subtitles from YouTube & Facebook instantly. Free MP3, M4A, SRT, and VTT exports.',
+  },
+  // Google Search Console verification — set GOOGLE_SITE_VERIFICATION in env
+  // with the content value from the meta tag Google gives you.
+  // Example: GOOGLE_SITE_VERIFICATION=abc123XYZ...
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || '',
   },
 };
 
