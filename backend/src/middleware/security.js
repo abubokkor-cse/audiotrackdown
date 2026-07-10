@@ -41,12 +41,17 @@ function setupSecurity(app) {
   );
 
   // CORS — restrict to frontend origin
-  const productionOrigins = [config.frontendUrl];
-  if (config.frontendUrl && config.frontendUrl.startsWith('http')) {
-    if (config.frontendUrl.includes('://www.')) {
-      productionOrigins.push(config.frontendUrl.replace('://www.', '://'));
+  let frontendUrl = config.frontendUrl || '';
+  if (frontendUrl.endsWith('/')) {
+    frontendUrl = frontendUrl.slice(0, -1);
+  }
+
+  const productionOrigins = [frontendUrl];
+  if (frontendUrl && frontendUrl.startsWith('http')) {
+    if (frontendUrl.includes('://www.')) {
+      productionOrigins.push(frontendUrl.replace('://www.', '://'));
     } else {
-      productionOrigins.push(config.frontendUrl.replace('://', '://www.'));
+      productionOrigins.push(frontendUrl.replace('://', '://www.'));
     }
   }
 
