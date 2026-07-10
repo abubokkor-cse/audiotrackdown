@@ -1,7 +1,7 @@
 {
   "name": "audiotrackdown-backend",
   "version": "1.0.0",
-  "description": "audiotrackdown — Multilingual YouTube Audio Extraction Backend",
+  "description": "audiotrackdown — Multilingual YouTube Audio Extraction Backend (Deploy: 2026-07-10)",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
