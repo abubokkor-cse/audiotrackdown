@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import { SubtitlesPageContent } from '../subtitles/page';
+import { SubtitlesPageContent } from '../youtube-subtitle-downloader/page';
 
 export default function YoutubeToSrtPage() {
   return (

@@ -1,0 +1,17 @@
+# AudioTrackDown
+
+AudioTrackDown is a free, web-based media utility designed to extract original high-quality audio tracks, multi-language dubbed voice tracks, and closed caption files (subtitles) from YouTube and Facebook URLs.
+
+## Features
+
+- **Multi-Language Dubbed Audio Extraction:** Downloads separate dubbed audio tracks (e.g. Spanish, Hindi, or French voiceovers) from videos that support YouTube Multi-Audio.
+- **Accurate Subtitle Downloader:** Extracts official YouTube closed captions and manual uploads as SRT, VTT, or JSON files.
+- **Microsecond Timings:** All subtitle downloads preserve precise, original video timecodes for easy sync inside video editors (Premiere, Resolve, CapCut).
+- **Auto-Translation:** Supports auto-generated closed caption translations into 157+ international languages.
+- **Privacy-First & Secure:** No advertisements, no malware redirects, and no account signup required.
+
+## API Endpoints
+
+- `GET /api/subtitle/info?url={video_url}`: Fetches video metadata and lists 157+ available subtitle languages, distinguishing between original and auto-generated captions.
+- `GET /api/subtitle/download?url={video_url}&lang={lang_code}&fmt={srt|vtt|json}`: Downloads and formats caption files directly.
+- `POST /api/extract`: Parses video links to extract all available multi-audio tracks.

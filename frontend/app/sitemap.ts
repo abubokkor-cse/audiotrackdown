@@ -12,13 +12,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 1.0,
         },
         {
-            url: `${baseUrl}/subtitles`,
+            url: `${baseUrl}/youtube-subtitle-downloader`,
             lastModified,
             changeFrequency: 'weekly',
             priority: 0.9,
         },
         {
             url: `${baseUrl}/youtube-to-srt`,
+            lastModified,
+            changeFrequency: 'weekly',
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/download-youtube-audio`,
+            lastModified,
+            changeFrequency: 'weekly',
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/download-facebook-audio`,
             lastModified,
             changeFrequency: 'weekly',
             priority: 0.9,

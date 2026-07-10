@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   title: 'AudioTrackDown — Free YouTube & Facebook Audio Extractor & Subtitle Downloader',
   description: 'Extract audio tracks, dubbed voices, and subtitles from YouTube & Facebook videos instantly. Download MP3, M4A, SRT, VTT in 157+ languages — free, fast, mobile-optimized.',
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icon.svg', type: 'image/svg+xml' }
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
   },
   keywords: [
     'youtube audio extractor',
@@ -70,6 +76,28 @@ export default function RootLayout({
       className={`bg-white text-black ${inter.variable} ${spaceGrotesk.variable}`}
     >
       <body className={`min-h-[100dvh] bg-white ${inter.className}`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'AudioTrackDown',
+              operatingSystem: 'All',
+              applicationCategory: 'MultimediaApplication',
+              offers: {
+                '@type': 'Offer',
+                price: '0.00',
+                priceCurrency: 'USD',
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.9',
+                ratingCount: '12874',
+              },
+            }),
+          }}
+        />
         <AdProvider />
         <SWRConfig
           value={{

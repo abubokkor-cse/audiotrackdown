@@ -607,7 +607,13 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
   );
 }
 
-function HomePageContent() {
+export function HomePageContent({
+  title = "Extract Audio Tracks & Dubbed Voices from YouTube & Facebook Videos — Free",
+  subtitle = "Download original and AI-dubbed audio as MP3 from any YouTube or Facebook video. Extract subtitles in SRT, VTT, or TXT across 157 languages — no account needed, works on mobile."
+}: {
+  title?: string;
+  subtitle?: string;
+} = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialUrl = searchParams.get('url') || '';
@@ -1023,11 +1029,8 @@ function HomePageContent() {
           <Globe className="w-3.5 h-3.5 text-indigo-500" />
           Free Online Tool · No Sign-Up Required · 157+ Languages
         </div>
-        <h1>Extract Audio Tracks &amp; Dubbed Voices from YouTube &amp; Facebook Videos — Free</h1>
-        <p className="hero-sub">
-          Download original and AI-dubbed audio as MP3 from any YouTube or Facebook video.
-          Extract subtitles in SRT, VTT, or TXT across 157 languages — no account needed, works on mobile.
-        </p>
+        <h1>{title}</h1>
+        <p className="hero-sub">{subtitle}</p>
 
         <div className="wave-wrap">
           <div className="waveform" id="wv">

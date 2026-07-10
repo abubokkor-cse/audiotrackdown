@@ -119,7 +119,7 @@ function Header() {
               <Music className="w-4 h-4" />
               Audio Extractor
             </Link>
-            <Link href="/subtitles" className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${pathname === '/subtitles' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
+            <Link href="/youtube-subtitle-downloader" className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${pathname === '/youtube-subtitle-downloader' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}>
               <FileText className="w-4 h-4" />
               Subtitles Downloader
             </Link>
@@ -172,7 +172,7 @@ function Header() {
             <Music className="w-4.5 h-4.5 text-gray-400" />
             Audio Extractor
           </Link>
-          <Link href="/subtitles" className={`flex items-center gap-2 text-base font-semibold py-2 border-b border-gray-50 ${pathname === '/subtitles' ? 'text-indigo-600' : 'text-gray-700'}`}>
+          <Link href="/youtube-subtitle-downloader" className={`flex items-center gap-2 text-base font-semibold py-2 border-b border-gray-50 ${pathname === '/youtube-subtitle-downloader' ? 'text-indigo-600' : 'text-gray-700'}`}>
             <FileText className="w-4.5 h-4.5 text-gray-400" />
             Subtitles Downloader
           </Link>
@@ -241,7 +241,7 @@ function Footer() {
                 <Link href="/" className="text-gray-600 hover:text-indigo-600 transition-colors">YouTube Audio Extractor</Link>
               </li>
               <li>
-                <Link href="/subtitles" className="text-gray-600 hover:text-indigo-600 transition-colors">YouTube Subtitle Downloader</Link>
+                <Link href="/youtube-subtitle-downloader" className="text-gray-600 hover:text-indigo-600 transition-colors">YouTube Subtitle Downloader</Link>
               </li>
               <li>
                 <Link href="/pricing" className="text-gray-600 hover:text-indigo-600 transition-colors">Pricing Plans</Link>
@@ -309,7 +309,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isPro) {
-      const publicPaths = ['/', '/subtitles', '/pricing'];
+      const publicPaths = ['/', '/youtube-subtitle-downloader', '/pricing'];
       if (publicPaths.includes(pathname)) {
         router.replace('/dashboard');
       }
@@ -317,7 +317,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [isPro, pathname, router]);
 
   // Prevent flash of public content for logged in Pro users
-  const isPublicPath = ['/', '/subtitles', '/pricing'].includes(pathname);
+  const isPublicPath = ['/', '/youtube-subtitle-downloader', '/pricing'].includes(pathname);
   if (isPro && isPublicPath) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
