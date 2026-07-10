@@ -201,10 +201,9 @@ router.get('/download', abuseLimiter, async (req, res) => {
     await fs.mkdir(tempDir, { recursive: true });
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-    // web_embedded + android: previously working clients with separate rate-limit quotas.
-    // formats=missing_pot: bypass YouTube's PO Token requirement (2025 change).
-    // No --sleep-requests: DataImpulse rotates IPs per request, so delays are pointless.
-    const buildArgs = ({ useCookies = false, useImpersonate = true, playerClient = 'web_embedded,android' } = {}) => {
+    // Build yt-dlp argument list matching 2026 anti-bot evasion stack:
+    // Combined Chrome impersonation and client configuration without artificial sleep delays.
+    const buildArgs = ({ useCookies = false, useImpersonate = true, useUserAgent = false, playerClient = 'web' } = {}) => {
       const args = [
         '--no-update',
         '--no-warnings',
@@ -213,15 +212,22 @@ router.get('/download', abuseLimiter, async (req, res) => {
         '--sub-langs', langCode,
         '--skip-download',
         '--output', path.join(tempDir, 'sub'),
-        '--add-header', 'Accept-Language:en-US,en;q=0.9',
-        '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        // formats=missing_pot: proceed even when YouTube demands a PO Token (2025 anti-bot)
-        '--extractor-args', `youtube:player_client=${playerClient}&skip=hls,dash&formats=missing_pot`,
       ];
 
       if (useImpersonate) {
         args.push('--impersonate', BEST_CHROME_TARGET);
       }
+
+      if (useUserAgent) {
+        args.push(
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          '--add-header', 'Accept-Language: en-US,en;q=0.9'
+        );
+      }
+
+      // formats=missing_pot: proceed even when YouTube demands a PO Token (2025/2026 anti-bot)
+      args.push('--extractor-args', `youtube:player_client=${playerClient}&skip=hls,dash&formats=missing_pot`);
 
       if (useCookies) {
         args.push('--cookies-from-browser', 'chrome');
@@ -232,7 +238,6 @@ router.get('/download', abuseLimiter, async (req, res) => {
         args.push('--proxy', proxyUrl);
       }
       args.push('--no-cache-dir');
-
       args.push(watchUrl);
       return args;
     };
@@ -244,11 +249,10 @@ router.get('/download', abuseLimiter, async (req, res) => {
       let stderr = '';
       proc.stderr.on('data', d => { stderr += d.toString(); });
 
-      // 12s per strategy — fast-fail so Python InnerTube fallback is reached quickly
       const timer = setTimeout(() => {
         proc.kill('SIGTERM');
         reject(new Error('yt-dlp process timed out'));
-      }, 12000);
+      }, config.ytdlp?.timeoutMs || 45000);
 
       proc.on('close', code => {
         clearTimeout(timer);
@@ -265,12 +269,20 @@ router.get('/download', abuseLimiter, async (req, res) => {
       });
     });
 
-    // Strategies — web_embedded+android worked previously, try both with and without impersonate
+    // 2026 Evasion Strategies:
     const strategies = [
-      { useCookies: false, useImpersonate: true,  playerClient: 'web_embedded,android', label: 'web_embedded+android+impersonate' },
-      { useCookies: false, useImpersonate: false, playerClient: 'web_embedded,android', label: 'web_embedded+android-plain'        },
-      { useCookies: false, useImpersonate: true,  playerClient: 'ios',                  label: 'ios+impersonate'                   },
-      { useCookies: false, useImpersonate: false, playerClient: 'android',              label: 'android-plain'                     },
+      // 1. chrome-impersonation + web client (definitive 2026 recommendation)
+      { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'web',                  label: 'optimized-impersonate-web' },
+      // 2. chrome-impersonation + web_embedded,android client (successful audio fallback combo)
+      { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'web_embedded,android', label: 'optimized-impersonate-embedded' },
+      // 3. chrome-impersonation + ios client (succeeded in recent run)
+      { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'ios',                  label: 'ios-impersonate' },
+      // 4. web_embedded,android without impersonation (succeeded in recent run)
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'web_embedded,android', label: 'web_embedded-android-plain' },
+      // 5. User-Agent headers + web client
+      { useCookies: false, useImpersonate: false, useUserAgent: true,  playerClient: 'web',                  label: 'optimized-chrome-ua-web' },
+      // 6. Plain android fallback
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android',              label: 'android-plain' },
     ];
 
     let lastError = null;
@@ -284,6 +296,14 @@ router.get('/download', abuseLimiter, async (req, res) => {
         const brief = err.message.split('\n')[0].substring(0, 120);
         console.warn(`[subtitle] ✗ Strategy "${strategy.label}" failed: ${brief}`);
         lastError = err;
+        
+        // Fast-fail: if we hit a 429 Rate Limit error, other strategies will likely fail too.
+        // Break early to trigger the Python InnerTube fallback immediately and save time.
+        if (err.message.includes('429')) {
+          console.log('[subtitle] 429 Rate limit detected. Skipping remaining strategies to fallback instantly.');
+          break;
+        }
+
         // Wipe partial files before next attempt
         try {
           const existing = await fs.readdir(tempDir);
