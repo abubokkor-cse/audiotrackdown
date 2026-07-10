@@ -556,26 +556,34 @@ function SubtitlesPageContent() {
     setResult(null);
 
     try {
-      const res = await fetch('/api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl }),
-      });
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || '';
+      const infoUrl = `${BACKEND_URL}/api/subtitle/info?url=${encodeURIComponent(targetUrl)}`;
+      const res = await fetch(infoUrl);
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to extract video details');
+        throw new Error(data.error || 'Could not load video info');
       }
 
-      setResult(data.data);
-      mutate('/api/user/limits');
+      // Map subtitle/info response to the shape the rest of the page expects
+      setResult({
+        video: {
+          title: data.video.title,
+          thumbnail: data.video.thumbnail,
+          duration: data.video.duration,
+          uploader: data.video.uploader,
+          id: data.video.id,
+        },
+        audioTracks: [],
+      });
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   }, [url]);
+
 
   const onExtractSubmit = (e: React.FormEvent) => {
     e.preventDefault();

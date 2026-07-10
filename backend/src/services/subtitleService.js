@@ -241,16 +241,10 @@ function fetchYouTubeSubtitles(videoId, langCode) {
         }
 
         if (result.requires_gemini_translation) {
-          console.log(`[subtitleService] Native YouTube translation unavailable. Fallback to Gemini translation...`);
-          try {
-            const cues = parseVttToCues(result.vtt);
-            const translatedCues = await translateCuesWithGemini(cues, langCode);
-            const translatedVtt = cuesToVtt(translatedCues);
-            return resolve(translatedVtt);
-          } catch (genAiErr) {
-            console.error('[subtitleService] Gemini translation failed:', genAiErr.message);
-            return reject(new Error(`Failed to translate transcript: ${genAiErr.message}`));
-          }
+          // Native YouTube translation unavailable — return original transcript directly.
+          // Gemini translation removed: too costly and unreliable for production.
+          console.log(`[subtitleService] Native translation unavailable. Returning original transcript for: ${langCode}`);
+          return resolve(result.vtt);
         }
 
         // Returns direct VTT from YouTube (original or translated natively)

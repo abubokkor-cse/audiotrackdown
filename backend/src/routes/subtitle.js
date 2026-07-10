@@ -36,6 +36,76 @@ function getProxyUrl() {
 
 const { YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
 
+// ── Route: GET /api/subtitle/info ─────────────────────────────────────────────
+/**
+ * Lightweight endpoint: returns only video title + thumbnail for a YouTube URL.
+ * Does NOT run audio track extraction — much faster than /api/extract.
+ * Uses NO proxy so it does not compete with the subtitle download proxy bandwidth.
+ * Query params:
+ *   url - YouTube watch URL
+ */
+router.get('/info', abuseLimiter, async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url is required' });
+
+  let parsedUrl;
+  try { parsedUrl = new URL(url); } catch {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+
+  let videoId = parsedUrl.searchParams.get('v');
+  if (!videoId && parsedUrl.hostname === 'youtu.be') {
+    videoId = parsedUrl.pathname.slice(1).split('?')[0];
+  }
+  if (!videoId || !/^[a-zA-Z0-9_-]+$/.test(videoId)) {
+    return res.status(400).json({ error: 'Could not extract video ID from URL' });
+  }
+
+  try {
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const args = [
+      '--no-update', '--no-warnings',
+      '--dump-single-json',  // only metadata, no download
+      '--skip-download',
+      '--no-playlist',
+      '--extractor-args', 'youtube:player_client=web_embedded&skip=hls,dash',
+      '--impersonate', BEST_CHROME_TARGET,
+      // No --proxy here — avoids competing with subtitle download proxy bandwidth
+      watchUrl,
+    ];
+
+    const stdout = await new Promise((resolve, reject) => {
+      const proc = spawn(YTDLP_BIN, args, { env: { ...process.env } });
+      let out = '';
+      let err = '';
+      proc.stdout.on('data', d => { out += d.toString(); });
+      proc.stderr.on('data', d => { err += d.toString(); });
+      const timer = setTimeout(() => { proc.kill('SIGTERM'); reject(new Error('timeout')); }, 15000);
+      proc.on('close', code => {
+        clearTimeout(timer);
+        if (code === 0) resolve(out);
+        else reject(new Error(err.trim()));
+      });
+      proc.on('error', reject);
+    });
+
+    const info = JSON.parse(stdout);
+    return res.json({
+      success: true,
+      video: {
+        id: videoId,
+        title: info.title || '',
+        thumbnail: info.thumbnail || (info.thumbnails?.[0]?.url) || '',
+        duration: info.duration || 0,
+        uploader: info.uploader || '',
+      },
+    });
+  } catch (err) {
+    console.error('[subtitle/info] Failed:', err.message?.split('\n')[0]);
+    return res.status(500).json({ error: 'Could not fetch video info. Please check the URL.' });
+  }
+});
+
 // ── Route: GET /api/subtitle/download ────────────────────────────────────────
 /**
  * Downloads YouTube subtitles via yt-dlp and returns cleaned VTT/SRT content.
@@ -46,6 +116,7 @@ const { YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
  *   fmt      - Output format: vtt | srt | json    (default: vtt)
  */
 router.get('/download', abuseLimiter, async (req, res) => {
+
   const { url, filename, lang, fmt: fmtParam } = req.query;
 
   if (!url) {
