@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { hasActiveSubscription } from '@/lib/subscription';
 
 interface PricingClientProps {
   user: any;
@@ -78,7 +79,7 @@ export default function PricingClient({ user }: PricingClientProps) {
     }
   };
 
-  const hasActiveSub = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
+  const hasActiveSub = hasActiveSubscription(user);
   const isMonthly = user?.paddlePriceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY;
   const isAnnual = user?.paddlePriceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL;
 
@@ -153,7 +154,7 @@ export default function PricingClient({ user }: PricingClientProps) {
           <span className="text-indigo-600">Subtitle Downloads</span>
         </h1>
         <p className="text-lg text-gray-500 leading-relaxed max-w-2xl mx-auto">
-          Remove ads, unlock unlimited high-speed downloads, and access every audio format. 
+          Remove ads, unlock unlimited high-speed downloads, and access every audio format.
           Plans start at just <strong className="text-gray-700">$2.42/month</strong>.
         </p>
       </div>
@@ -163,11 +164,10 @@ export default function PricingClient({ user }: PricingClientProps) {
         {tiers.map((tier, index) => (
           <div
             key={tier.name}
-            className={`atd-stagger atd-stagger-${index + 2} flex flex-col justify-between p-7 bg-white rounded-2xl border ${
-              tier.popular
+            className={`atd-stagger atd-stagger-${index + 2} flex flex-col justify-between p-7 bg-white rounded-2xl border ${tier.popular
                 ? 'border-indigo-300 shadow-lg shadow-indigo-100/50 ring-2 ring-indigo-500/20'
                 : 'border-gray-200 shadow-sm'
-            } relative overflow-hidden atd-card-hover`}
+              } relative overflow-hidden atd-card-hover`}
           >
             {tier.popular && (
               <div className="absolute top-0 right-0 bg-gradient-to-l from-indigo-600 to-violet-600 text-white text-[11px] font-bold px-4 py-1.5 rounded-bl-xl flex items-center gap-1.5 shadow-md">
@@ -201,13 +201,12 @@ export default function PricingClient({ user }: PricingClientProps) {
               <ul className="space-y-3.5 mb-8">
                 {tier.features.map((feature: any, idx) => (
                   <li key={idx} className="flex items-start gap-2.5">
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                      feature.forbidden 
-                        ? 'bg-red-50 text-red-500 border border-red-100/50' 
-                        : tier.popular 
-                          ? 'bg-indigo-100 text-indigo-600' 
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${feature.forbidden
+                        ? 'bg-red-50 text-red-500 border border-red-100/50'
+                        : tier.popular
+                          ? 'bg-indigo-100 text-indigo-600'
                           : 'bg-gray-100 text-gray-500'
-                    }`}>
+                      }`}>
                       <feature.icon className="h-3 w-3" />
                     </div>
                     <span className={`text-sm leading-snug ${feature.forbidden ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-600'}`}>
@@ -230,11 +229,10 @@ export default function PricingClient({ user }: PricingClientProps) {
                 </Button>
               ) : (
                 <Button
-                  className={`w-full py-6 text-base rounded-xl font-semibold transition-all atd-btn-lift ${
-                    tier.popular
+                  className={`w-full py-6 text-base rounded-xl font-semibold transition-all atd-btn-lift ${tier.popular
                       ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md shadow-indigo-500/20'
                       : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
-                  }`}
+                    }`}
                   disabled={
                     (hasActiveSub && isMonthly && tier.priceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY) ||
                     (hasActiveSub && isAnnual && tier.priceId === process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL) ||

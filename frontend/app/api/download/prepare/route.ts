@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, getDailyDownloadCount, logDownload } from '@/lib/db/queries';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
-const BACKEND_SECRET = process.env.BACKEND_SECRET || 'shared-secret';
+import { getUser, logDownload } from '@/lib/db/queries';
+import { BACKEND_URL, backendHeaders } from '@/lib/backend';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,15 +13,10 @@ export async function POST(request: NextRequest) {
 
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1';
 
-    const hasActiveSub = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
-
     // Proxy download prepare to Express backend
     const res = await fetch(`${BACKEND_URL}/api/download/prepare`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-backend-secret': BACKEND_SECRET,
-      },
+      headers: backendHeaders(),
       body: JSON.stringify({ url, formatId, langName, targetExt }),
     });
 

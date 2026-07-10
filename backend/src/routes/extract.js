@@ -2,6 +2,7 @@ const express = require('express');
 const { extractAudioTracks, clearCache } = require('../services/ytdlp');
 const { validateVideoUrl } = require('../middleware/validate');
 const { extractionLimiter } = require('../middleware/rateLimit');
+const abuseLimiter = require('../middleware/abuseLimiter');
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
  * POST /api/extract
  * Extract all available audio tracks from a YouTube or Facebook video
  */
-router.post('/', extractionLimiter, validateVideoUrl, async (req, res) => {
+router.post('/', abuseLimiter, extractionLimiter, validateVideoUrl, async (req, res) => {
   try {
     const { url } = req.body;
     console.log(`📥 Extract request: ${url.substring(0, 60)}...`);

@@ -32,11 +32,28 @@ app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(generalLimiter);
 
 // ── Secret token verification ─────────────────────────────────────────
+// SECURITY: never use a weak default in production. Fail fast if unset.
+const isProdSecure = config.nodeEnv === 'production';
+const backendSecret = process.env.BACKEND_SECRET || (isProdSecure ? null : 'dev-shared-secret');
+if (isProdSecure && !process.env.BACKEND_SECRET) {
+  console.error('❌ FATAL: BACKEND_SECRET environment variable is required in production.');
+  process.exit(1);
+}
+
+// Paths that require the shared secret on EVERY method (including GET).
+// These expose diagnostics / proxy details and must not be public.
+const SECRET_REQUIRED_PATHS = [
+  '/api/health/proxy-test',
+  '/api/health/verbose-test',
+];
+
 app.use((req, res, next) => {
-  const backendSecret = process.env.BACKEND_SECRET || 'shared-secret';
   const headerSecret = req.headers['x-backend-secret'];
-  
-  if (req.method === 'POST' && headerSecret !== backendSecret) {
+
+  const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  const isProtectedGet = SECRET_REQUIRED_PATHS.some((p) => req.path.startsWith(p));
+
+  if ((isMutating || isProtectedGet) && headerSecret !== backendSecret) {
     return res.status(401).json({ error: 'Unauthorized backend access.' });
   }
   next();

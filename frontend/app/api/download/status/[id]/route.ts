@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
+import { BACKEND_URL, backendHeaders } from '@/lib/backend';
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +13,8 @@ export async function GET(
     }
 
     const res = await fetch(`${BACKEND_URL}/api/download/status/${id}`, {
-      cache: 'no-store'
+      cache: 'no-store',
+      headers: backendHeaders(),
     });
 
     if (!res.ok) {

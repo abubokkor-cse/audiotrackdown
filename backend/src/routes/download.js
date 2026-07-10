@@ -5,9 +5,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
-const { getStreamUrl, YTDLP_BIN, BEST_CHROME_TARGET, getProxyUrl } = require('../services/ytdlp');
+const { getStreamUrl, YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
 const { validateVideoUrl, validateFormatId } = require('../middleware/validate');
 const { downloadLimiter } = require('../middleware/rateLimit');
+const abuseLimiter = require('../middleware/abuseLimiter');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -96,10 +97,10 @@ function startBackgroundDownload(downloadId) {
   if (download.strategyUseCookies) {
     ytdlpArgs.push('--cookies-from-browser', 'chrome');
   }
-  const proxyUrl = getProxyUrl();
-  if (proxyUrl) {
-    ytdlpArgs.push('--proxy', proxyUrl);
-  }
+  // NOTE: We intentionally do NOT use the proxy here.
+  // The proxy (DataImpulse) is only needed for extraction (metadata fetch ~50KB).
+  // The actual audio file (3-8MB) downloads directly from YouTube's CDN —
+  // routing it through the proxy would waste expensive per-GB proxy bandwidth.
   ytdlpArgs.push('-f', download.formatId);
   ytdlpArgs.push('-o', '-'); // Stream to stdout
   ytdlpArgs.push(download.originalUrl);
@@ -159,7 +160,7 @@ function startBackgroundDownload(downloadId) {
  * POST /api/download/prepare
  * Prepare a download in the background and return a download ID
  */
-router.post('/prepare', downloadLimiter, validateVideoUrl, validateFormatId, async (req, res) => {
+router.post('/prepare', abuseLimiter, downloadLimiter, validateVideoUrl, validateFormatId, async (req, res) => {
   try {
     const { url, formatId, langName, targetExt } = req.body;
     const downloadId = uuidv4();

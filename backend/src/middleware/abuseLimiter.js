@@ -1,6 +1,4 @@
 const dns = require('dns').promises;
-const db = require('../db/database');
-const config = require('../config');
 
 // Hosting DNS suffixes to block commercial bot VPNs
 const DATACENTER_DOMAINS = [
@@ -30,7 +28,12 @@ async function reverseDnsWithTimeout(ip, timeoutMs = 1200) {
 }
 
 /**
- * Enforces security and pricing limits across all synthesis and transcription routes
+ * Security middleware: blocks automated bots (by User-Agent) and requests
+ * originating from known datacenter/VPN IP ranges (by reverse DNS lookup).
+ *
+ * Wired into /api/extract, /api/download, and /api/subtitle so abusive
+ * scripted traffic is rejected before hitting the expensive yt-dlp/ffmpeg
+ * pipeline. Local development IPs are bypassed for convenience.
  */
 async function abuseLimiter(req, res, next) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
@@ -66,59 +69,7 @@ async function abuseLimiter(req, res, next) {
     }
   }
 
-  // Determine request action type based on path
-  let actionType = 'tts';
-  if (req.path.includes('transcribe')) {
-    actionType = 'transcribe';
-  } else if (req.path.includes('subtitle-to-speech') || req.path.includes('dub')) {
-    actionType = 'dubbing';
-  }
-
-  // 3. User tier identification
-  if (!req.user) {
-    // --- GUEST USER LIMITS (UNLIMITED) ---
-    req.userTier = 'free';
-    req.quotaLimits = {
-      maxFileSize: 10.0 * 1024 * 1024 * 1024, // 10 GB
-      maxDurationSeconds: 24 * 60 * 60,       // 24 hours
-      maxConcurrentJobs: 999
-    };
-
-    next();
-  } else {
-    // --- REGISTERED SUBSCRIBER LIMITS (UNLIMITED) ---
-    let user = db.getUser(req.user.uid);
-    if (!user) {
-      user = db.upsertUser(req.user.uid, req.user.email, 'free');
-    }
-
-    const currentLimits = {
-      maxFileSize: 10.0 * 1024 * 1024 * 1024, // 10 GB
-      maxDurationSecs: 24 * 60 * 60,         // 24 hours
-      maxConcurrent: 999
-    };
-
-    // 4. Device Session Concurrency Verification (Bypassed / Kept for logging)
-    const deviceFingerprint = req.headers['x-device-fingerprint'] || req.query.deviceFingerprint;
-    if (deviceFingerprint) {
-      db.registerSession(user.id, deviceFingerprint, ip);
-      db.cleanExpiredSessions(user.id, currentLimits.maxConcurrent);
-      db.updateSessionActivity(user.id, deviceFingerprint);
-    }
-
-    // 5. Daily Processing Limits (Disabled - Unlimited)
-    // 6. Monthly Quota Checks (Disabled - Unlimited)
-
-    req.userTier = user.plan_type;
-    req.userId = user.id;
-    req.quotaLimits = {
-      maxFileSize: currentLimits.maxFileSize,
-      maxDurationSeconds: currentLimits.maxDurationSecs,
-      maxConcurrentJobs: currentLimits.maxConcurrent
-    };
-
-    next();
-  }
+  next();
 }
 
 module.exports = abuseLimiter;

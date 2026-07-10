@@ -8,6 +8,7 @@ const os = require('os');
 const crypto = require('crypto');
 const config = require('../config');
 const subtitleService = require('../services/subtitleService');
+const abuseLimiter = require('../middleware/abuseLimiter');
 
 /**
  * Resolves the rotating proxy URL, automatically transforming HTTP to SOCKS5h
@@ -16,19 +17,19 @@ const subtitleService = require('../services/subtitleService');
 function getProxyUrl() {
   const rawProxy = process.env.ROTATING_PROXIES;
   if (!rawProxy) return null;
-  
+
   // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
   if (rawProxy.includes('gw.dataimpulse.com:823')) {
     return rawProxy
       .replace(/^http:\/\//i, 'socks5h://')
       .replace(':823', ':824');
   }
-  
+
   // If SOCKS5 is already set, upgrade it to socks5h
   if (rawProxy.startsWith('socks5://')) {
     return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
   }
-  
+
   return rawProxy;
 }
 
@@ -44,7 +45,7 @@ const { YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
  *   filename - Base filename for Content-Disposition (optional)
  *   fmt      - Output format: vtt | srt | json    (default: vtt)
  */
-router.get('/download', async (req, res) => {
+router.get('/download', abuseLimiter, async (req, res) => {
   const { url, filename, lang, fmt: fmtParam } = req.query;
 
   if (!url) {
@@ -70,8 +71,8 @@ router.get('/download', async (req, res) => {
     return res.status(400).json({ error: 'Invalid language code parameter' });
   }
 
-  const fmt      = fmtParam || parsedUrl.searchParams.get('fmt') || 'vtt';
-  const ext      = isFbCdn
+  const fmt = fmtParam || parsedUrl.searchParams.get('fmt') || 'vtt';
+  const ext = isFbCdn
     ? (url.includes('.srt') ? 'srt' : 'vtt')
     : (fmt === 'srt' || fmt === 'srv1' ? 'srt' : fmt === 'json' || fmt === 'json3' ? 'json' : 'vtt');
 
@@ -185,10 +186,10 @@ router.get('/download', async (req, res) => {
 
     // Try four strategies in order — stop at first success
     const strategies = [
-      { useCookies: false, useImpersonate: true,  label: 'impersonate'          },
-      { useCookies: true,  useImpersonate: true,  label: 'cookies+impersonate'  },
-      { useCookies: true,  useImpersonate: false, label: 'cookies-only'         },
-      { useCookies: false, useImpersonate: false, label: 'plain'                },
+      { useCookies: false, useImpersonate: true, label: 'impersonate' },
+      { useCookies: true, useImpersonate: true, label: 'cookies+impersonate' },
+      { useCookies: true, useImpersonate: false, label: 'cookies-only' },
+      { useCookies: false, useImpersonate: false, label: 'plain' },
     ];
 
     let lastError = null;
@@ -205,7 +206,7 @@ router.get('/download', async (req, res) => {
         // Wipe partial files before next attempt
         try {
           const existing = await fs.readdir(tempDir);
-          for (const f of existing) await fs.unlink(path.join(tempDir, f)).catch(() => {});
+          for (const f of existing) await fs.unlink(path.join(tempDir, f)).catch(() => { });
         } catch { /* ignore */ }
       }
     }
@@ -229,8 +230,8 @@ router.get('/download', async (req, res) => {
     // Always clean up temp directory
     try {
       const files = await fs.readdir(tempDir).catch(() => []);
-      for (const f of files) await fs.unlink(path.join(tempDir, f)).catch(() => {});
-      await fs.rmdir(tempDir).catch(() => {});
+      for (const f of files) await fs.unlink(path.join(tempDir, f)).catch(() => { });
+      await fs.rmdir(tempDir).catch(() => { });
     } catch { /* ignore */ }
   }
 
@@ -267,13 +268,13 @@ router.get('/download', async (req, res) => {
 
     let responseContent, contentType;
     if (ext === 'srt') {
-      contentType     = 'text/srt; charset=utf-8';
+      contentType = 'text/srt; charset=utf-8';
       responseContent = formatToSrt(cleanedCues);
     } else if (ext === 'json') {
-      contentType     = 'application/octet-stream';
+      contentType = 'application/octet-stream';
       responseContent = JSON.stringify({ cues: cleanedCues }, null, 2);
     } else {
-      contentType     = 'text/vtt; charset=utf-8';
+      contentType = 'text/vtt; charset=utf-8';
       responseContent = formatToVtt(cleanedCues);
     }
 
@@ -297,22 +298,22 @@ router.get('/download', async (req, res) => {
  * YouTube's rolling-caption format.
  */
 function parseAndCleanVtt(vttText) {
-  const lines     = vttText.split(/\r?\n/);
-  const cues      = [];
+  const lines = vttText.split(/\r?\n/);
+  const cues = [];
   const timeRegex = /(\d{2}:)?\d{2}:\d{2}\.\d{3}/;
   let i = 0;
 
   while (i < lines.length) {
     const line = lines[i].trim();
     if (line.includes('-->')) {
-      const parts      = line.split('-->');
+      const parts = line.split('-->');
       const startMatch = parts[0].match(timeRegex);
-      const endMatch   = parts[1].match(timeRegex);
+      const endMatch = parts[1].match(timeRegex);
       if (startMatch && endMatch) {
         let start = startMatch[0];
-        let end   = endMatch[0];
+        let end = endMatch[0];
         if (start.split(':').length === 2) start = '00:' + start;
-        if (end.split(':').length   === 2) end   = '00:' + end;
+        if (end.split(':').length === 2) end = '00:' + end;
 
         const textLines = [];
         i++;
@@ -342,9 +343,9 @@ function parseAndCleanVtt(vttText) {
       cleaned.push(cue);
       continue;
     }
-    const prev         = cleaned[cleaned.length - 1];
-    const prevLines    = prev.text.split('\n');
-    let   curLines     = cue.text.split('\n');
+    const prev = cleaned[cleaned.length - 1];
+    const prevLines = prev.text.split('\n');
+    let curLines = cue.text.split('\n');
 
     if (prev.text === cue.text) {
       prev.end = cue.end; // extend end time of identical cue

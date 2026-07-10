@@ -87,19 +87,19 @@ function normalizeYouTubeUrl(rawUrl) {
 function getProxyUrl() {
   const rawProxy = process.env.ROTATING_PROXIES;
   if (!rawProxy) return null;
-  
+
   // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
   if (rawProxy.includes('gw.dataimpulse.com:823')) {
     return rawProxy
       .replace(/^http:\/\//i, 'socks5h://')
       .replace(':823', ':824');
   }
-  
+
   // If SOCKS5 is already set, upgrade it to socks5h
   if (rawProxy.startsWith('socks5://')) {
     return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
   }
-  
+
   return rawProxy;
 }
 
@@ -260,50 +260,81 @@ function extractAudioTracks(rawUrl) {
       { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'tv', label: 'tv' },
     ];
 
+    /**
+     * Helper: run a single strategy and return a normalized outcome object.
+     */
+    const runOne = async (strategy) => {
+      const args = buildArgs(strategy);
+      const hasProxy = args.includes('--proxy');
+      const proxyUrl = getProxyUrl();
+      console.log(`[ytdlp] Running strategy "${strategy.label}" | proxy=${hasProxy} | proxyUrl=${proxyUrl ? 'SET(' + proxyUrl.substring(0, 35) + '...)' : 'NOT SET'}`);
+      try {
+        const stdout = await runStrategy(args);
+        console.log(`[ytdlp] ✓ Strategy "${strategy.label}" completed successfully`);
+        const info = JSON.parse(stdout);
+        const result = processExtractedInfo(info);
+
+        const allFmts = info.formats || [];
+        const audioOnly = allFmts.filter(f => f.acodec !== 'none' && f.vcodec === 'none');
+        const langs = [...new Set(audioOnly.map(f => f.language || 'default'))];
+        console.log(`[ytdlp] Strategy "${strategy.label}" raw formats: ${allFmts.length} total, ${audioOnly.length} audio-only, languages: [${langs.join(', ')}]`);
+
+        return { strategy, result, isWinner: result.audioTracks.length > 1, error: null };
+      } catch (err) {
+        console.warn(`[ytdlp] ✗ Strategy "${strategy.label}" failed: ${err.message.split('\n')[0].substring(0, 120)}`);
+        return { strategy, result: null, isWinner: false, error: err };
+      }
+    };
+
     (async () => {
       let lastError = null;
       let bestResult = null;
-      let bestStdout = null;
+      const maxParallel = Math.max(1, config.ytdlp.maxParallelStrategies || 2);
 
-      for (const strategy of strategies) {
-        try {
-          const args = buildArgs(strategy);
-          const hasProxy = args.includes('--proxy');
-          const proxyUrl = getProxyUrl();
-          console.log(`[ytdlp] Running strategy "${strategy.label}" | proxy=${hasProxy} | proxyUrl=${proxyUrl ? 'SET(' + proxyUrl.substring(0, 35) + '...)' : 'NOT SET'}`);
-          const stdout = await runStrategy(args);
-          console.log(`[ytdlp] ✓ Strategy "${strategy.label}" completed successfully`);
-          
-          const info = JSON.parse(stdout);
-          const result = processExtractedInfo(info);
-          
-          const allFmts = info.formats || [];
-          const audioOnly = allFmts.filter(f => f.acodec !== 'none' && f.vcodec === 'none');
-          const langs = [...new Set(audioOnly.map(f => f.language || 'default'))];
-          console.log(`[ytdlp] Strategy "${strategy.label}" raw formats: ${allFmts.length} total, ${audioOnly.length} audio-only, languages: [${langs.join(', ')}]`);
+      // ── PHASE 1: Try the single best strategy first ──────────────────────
+      // The first strategy (optimized-impersonate) uses player_client=android,web_embedded
+      // which is the ONLY combo that exposes dubbed multi-language audio tracks.
+      // It succeeds ~90% of the time, so running it alone first means the common
+      // case resolves with ONE process (~3-5s, ~50MB) instead of fanning out.
+      console.log(`[ytdlp] ── Phase 1: primary strategy "${strategies[0].label}" ──`);
+      const primary = await runOne(strategies[0]);
 
-          // If we found more than 1 language, we have a winner!
-          if (result.audioTracks.length > 1) {
-            console.log(`[ytdlp] Winning strategy "${strategy.label}" found with ${result.audioTracks.length} tracks!`);
-            bestResult = result;
-            bestStdout = stdout;
-            lastError = null;
-            break;
+      if (primary.isWinner) {
+        console.log(`[ytdlp] 🏆 Phase 1 hit! "${primary.strategy.label}" found ${primary.result.audioTracks.length} tracks — done in 1 process.`);
+        bestResult = primary.result;
+      } else {
+        if (primary.result) bestResult = primary.result;
+        if (primary.error) lastError = primary.error;
+
+        // ── PHASE 2: Fan out remaining strategies in capped batches ─────────
+        // Only reached if Phase 1 failed or returned a single (degraded) track.
+        // Run the remaining strategies in parallel batches of `maxParallel` to
+        // stay within memory limits (Railway free tier = 512MB). Resolve the
+        // instant any strategy returns multi-language tracks.
+        const remaining = strategies.slice(1);
+        console.log(`[ytdlp] ── Phase 2: ${remaining.length} fallback strategies, max ${maxParallel} at a time ──`);
+
+        // Process in batches to bound peak memory.
+        for (let i = 0; i < remaining.length; i += maxParallel) {
+          if (bestResult && bestResult.audioTracks.length > 1) break; // safety: already have a winner
+
+          const batch = remaining.slice(i, i + maxParallel);
+          const outcomes = await Promise.all(batch.map(runOne));
+
+          for (const o of outcomes) {
+            if (o.isWinner) {
+              console.log(`[ytdlp] 🏆 Phase 2 hit! "${o.strategy.label}" found ${o.result.audioTracks.length} tracks!`);
+              bestResult = o.result;
+              lastError = null;
+              break;
+            }
+            if (o.result && !bestResult) bestResult = o.result;
+            if (o.error) lastError = o.error;
           }
-
-          // Otherwise, save it as fallback but keep checking other strategies
-          if (!bestResult) {
-            bestResult = result;
-            bestStdout = stdout;
-          }
-          console.log(`[ytdlp] Strategy "${strategy.label}" returned only 1 track. Trying next strategy...`);
-        } catch (err) {
-          console.warn(`[ytdlp] ✗ Strategy "${strategy.label}" failed: ${err.message.split('\n')[0].substring(0, 120)}`);
-          lastError = err;
         }
       }
 
-      if (lastError && !bestResult) {
+      if (!bestResult && lastError) {
         const errMsg = lastError.message || '';
         if (errMsg.includes('Video unavailable') || errMsg.includes('Private video')) {
           return reject(new Error('This video is private or unavailable.'));

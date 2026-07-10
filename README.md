@@ -33,14 +33,14 @@ This project is structured as a monorepo containing the frontend and backend in 
     ```bash
     cd ../frontend
     ```
-2. Install dependencies:
+2. Install dependencies (the frontend uses **pnpm** — a `pnpm-lock.yaml` is included):
     ```bash
-    npm install
+    pnpm install
     ```
-3. Configure environment variables in `.env.local` (see `.env.example`).
+3. Configure environment variables in `.env.local` (see `.env.example`). You can generate one interactively with `pnpm db:setup`.
 4. Run the development server:
     ```bash
-    npm run dev
+    pnpm dev
     ```
 
 ---

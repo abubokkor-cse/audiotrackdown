@@ -44,7 +44,7 @@ function setupSecurity(app) {
   app.use(
     cors({
       origin: config.nodeEnv === 'development'
-        ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+        ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
         : [config.frontendUrl],
       methods: ['GET', 'POST'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Fingerprint', 'X-Admin-Password', 'X-Admin-2FA-Code'],

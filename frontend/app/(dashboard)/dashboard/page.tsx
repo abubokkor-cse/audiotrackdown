@@ -85,11 +85,10 @@ const AUDIO_FORMATS = [
 function SidebarItem({ active, icon: Icon, label, onClick }: { active: boolean; icon: any; label: string; onClick: () => void }) {
   return (
     <button
-      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-        active
+      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${active
           ? 'bg-indigo-50 text-indigo-700'
           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-      }`}
+        }`}
       onClick={onClick}
     >
       <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
@@ -181,29 +180,47 @@ function DashboardContent() {
         setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
         setDlSuccess(`${track.langName} · ${selFmt} ready!`);
       } else {
-        const res = await fetch('/api/download/prepare', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ 
-            url: audioUrl.trim() || initialUrl, 
-            formatId: quality.formatId, 
+        const res = await fetch('/api/download/prepare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: audioUrl.trim() || initialUrl,
+            formatId: quality.formatId,
             langName: track.langName,
             targetExt: quality.ext,
-          }) 
+          })
         });
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.error || 'Download failed');
         mutate('/api/user/limits');
 
-        // Same-tab download via hidden anchor
+        // Poll status until ready, then download as blob (avoids JSON error saved as file)
         const streamUrl = `/api/download/stream/${data.downloadId}`;
+        const statusUrl = `/api/download/status/${data.downloadId}`;
+        let ready = false;
+        for (let i = 0; i < 60; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const sRes = await fetch(statusUrl);
+          const sData = await sRes.json();
+          if (sData.status === 'ready') { ready = true; break; }
+          if (sData.status === 'error') throw new Error(sData.error || 'Transcoding failed');
+        }
+        if (!ready) throw new Error('Download timed out. Please try again.');
+
+        const fileRes = await fetch(streamUrl);
+        if (!fileRes.ok) throw new Error('Failed to download audio file');
+        const blob = await fileRes.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = streamUrl;
+        link.href = blobUrl;
         link.download = data.filename || 'audio.mp3';
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
+        setTimeout(() => {
+          if (document.body.contains(link)) document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 1000);
         setDlSuccess(`${track.langName} · ${selFmt} ready!`);
       }
     } catch (err: any) {
@@ -405,21 +422,19 @@ function DashboardContent() {
                 {/* Tool Selector Tabs */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 w-fit flex gap-1 shadow-sm atd-stagger atd-stagger-2">
                   <button
-                    className={`flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      activeTool === 'audio'
+                    className={`flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeTool === 'audio'
                         ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
                         : 'text-gray-500 hover:bg-slate-50'
-                    }`}
+                      }`}
                     onClick={() => { setActiveTool('audio'); setResult(null); setError(''); setDlSuccess(''); }}
                   >
                     <Music className="w-4 h-4" /> Audio extractor
                   </button>
                   <button
-                    className={`flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      activeTool === 'subtitle'
+                    className={`flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeTool === 'subtitle'
                         ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
                         : 'text-gray-500 hover:bg-slate-50'
-                    }`}
+                      }`}
                     onClick={() => { setActiveTool('subtitle'); setResult(null); setError(''); setDlSuccess(''); }}
                   >
                     <FileText className="w-4 h-4" /> Subtitle download
@@ -455,7 +470,7 @@ function DashboardContent() {
                           onKeyDown={(e) => e.key === 'Enter' && handleExtract(audioUrl, 'audio')}
                         />
                         {audioUrl && (
-                          <button 
+                          <button
                             className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
                             onClick={() => { setAudioUrl(''); setResult(null); setError(''); }}
                           >
@@ -514,11 +529,10 @@ function DashboardContent() {
                             {result.audioTracks.map((track: any, idx: number) => (
                               <div
                                 key={idx}
-                                className={`flex items-center gap-3 sm:gap-3.5 px-3 sm:px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all ${
-                                  selTrackIdx === idx
+                                className={`flex items-center gap-3 sm:gap-3.5 px-3 sm:px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all ${selTrackIdx === idx
                                     ? 'border-indigo-600 bg-indigo-50/40 shadow-sm shadow-indigo-500/5'
                                     : 'border-slate-100 hover:border-indigo-200 bg-white'
-                                }`}
+                                  }`}
                                 onClick={() => setSelTrackIdx(idx)}
                               >
                                 <div className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selTrackIdx === idx ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>
@@ -549,11 +563,10 @@ function DashboardContent() {
                             {AUDIO_FORMATS.map((fmt) => (
                               <div
                                 key={fmt.id}
-                                className={`flex items-center gap-3 p-3 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all atd-card-hover ${
-                                  selFmt === fmt.label
+                                className={`flex items-center gap-3 p-3 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all atd-card-hover ${selFmt === fmt.label
                                     ? 'border-indigo-600 bg-indigo-50/40'
                                     : 'border-slate-100 bg-white'
-                                }`}
+                                  }`}
                                 onClick={() => setSelFmt(fmt.label)}
                               >
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${selFmt === fmt.label ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-gray-400'}`}>
@@ -627,7 +640,7 @@ function DashboardContent() {
                           onKeyDown={(e) => e.key === 'Enter' && handleExtract(subUrl, 'subtitle')}
                         />
                         {subUrl && (
-                          <button 
+                          <button
                             className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
                             onClick={() => { setSubUrl(''); setResult(null); setError(''); }}
                           >
@@ -706,8 +719,8 @@ function DashboardContent() {
                                   const typeStyle = sub.isAutoTranslated
                                     ? 'text-amber-700 bg-amber-50'
                                     : sub.isAutoGenerated
-                                    ? 'text-emerald-700 bg-emerald-50'
-                                    : 'text-indigo-700 bg-indigo-50';
+                                      ? 'text-emerald-700 bg-emerald-50'
+                                      : 'text-indigo-700 bg-indigo-50';
 
                                   return (
                                     <tr key={langCode} className="hover:bg-slate-50/50 transition-colors">
@@ -765,8 +778,8 @@ function DashboardContent() {
                               const typeStyle = sub.isAutoTranslated
                                 ? 'text-amber-700 bg-amber-50'
                                 : sub.isAutoGenerated
-                                ? 'text-emerald-700 bg-emerald-50'
-                                : 'text-indigo-700 bg-indigo-50';
+                                  ? 'text-emerald-700 bg-emerald-50'
+                                  : 'text-indigo-700 bg-indigo-50';
 
                               return (
                                 <div key={langCode} className="p-4 space-y-3">

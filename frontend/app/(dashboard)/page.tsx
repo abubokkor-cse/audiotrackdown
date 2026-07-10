@@ -145,7 +145,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
       const calculated = 5 + elapsed * 6;
       return `${Math.min(calculated, 95)}%`;
     }
-    return isTimerDone ? (isUrlReady ? '100%' : '92%') : `${((totalSeconds - seconds) / totalSeconds) * 100}%`;
+    return isTimerDone ? (isFileReady || type === 'subtitle' ? '100%' : '92%') : `${((totalSeconds - seconds) / totalSeconds) * 100}%`;
   };
 
   useEffect(() => {
@@ -206,21 +206,21 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
   const isTimerDone = isMp3Ready || isSubReady;
 
   let directStreamUrl = '';
-  
+  let downloadId = '';
+
   if (isMp3Ready && downloadUrl) {
     try {
       const u = new URL(downloadUrl, window.location.origin);
-      const dlId = u.searchParams.get('id');
-      if (dlId) directStreamUrl = `/api/download/stream/${dlId}`;
-    } catch {}
+      downloadId = u.searchParams.get('id') || '';
+      if (downloadId) directStreamUrl = `/api/download/stream/${downloadId}`;
+    } catch { }
   } else if (isSubReady) {
     directStreamUrl = downloadUrl || '';
   }
 
-  // Backend URL is resolved and ready
+  // The download URL exists (backend accepted the prepare request).
+  // This does NOT mean the file is transcoded yet — we must poll status.
   const isUrlReady = !!directStreamUrl;
-  // Show inline button area only when timer is done
-  const isInlineReady = isTimerDone;
 
   const downloadBtnLabel = type === 'subtitle' ? 'Download Subtitles' : 'Download MP3';
 
@@ -232,35 +232,65 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     }
   };
 
-  // Auto-trigger download as soon as URL becomes available after timer ends
-  const autoTriggeredRef = useRef(false);
-  useEffect(() => {
-    if (isTimerDone && isUrlReady && !autoTriggeredRef.current) {
-      autoTriggeredRef.current = true;
-      // Small delay so the user sees the button appear
-      const t = setTimeout(() => {
-        triggerSmartlinkOnce();
-        try {
-          const link = document.createElement('a');
-          link.href = directStreamUrl;
-          link.download = '';
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            if (document.body.contains(link)) document.body.removeChild(link);
-          }, 500);
-        } catch {}
-      }, 400);
-      return () => clearTimeout(t);
-    }
-  }, [isTimerDone, isUrlReady, directStreamUrl]);
+  // ── Poll backend status until the file is ACTUALLY ready ──────────────
+  // The backend transcodes asynchronously. The stream URL returns a JSON
+  // "still preparing" error (HTTP 202) until transcoding finishes. We poll
+  // /api/download/status/{id} and only flip isFileReady when status === 'ready'.
+  // NO auto-download — the user must click the button themselves.
+  const [isFileReady, setIsFileReady] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
-  // Reset auto-trigger ref when modal reopens
+  useEffect(() => {
+    // Only poll for MP3 downloads (subtitles are fetched directly, no transcoding)
+    if (!isOpen || type !== 'download' || !isTimerDone || !downloadId || isFileReady) return;
+
+    setIsFileReady(false);
+    setFileError(null);
+
+    let cancelled = false;
+    const statusUrl = `/api/download/status/${downloadId}`;
+
+    const poll = async () => {
+      for (let i = 0; i < 60; i++) {
+        if (cancelled) return;
+        try {
+          const sRes = await fetch(statusUrl);
+          const sData = await sRes.json();
+          if (cancelled) return;
+          if (sData.status === 'ready') {
+            setIsFileReady(true);
+            return;
+          }
+          if (sData.status === 'error') {
+            setFileError(sData.error || 'Transcoding failed. Please try again.');
+            return;
+          }
+          // status === 'processing' → keep waiting
+        } catch (e) {
+          // network blip — keep trying
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      if (!cancelled) setFileError('Download timed out. Please try again.');
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [isOpen, type, isTimerDone, downloadId, isFileReady]);
+
+  // Reset file-ready state when modal reopens
   useEffect(() => {
     if (!isOpen) {
-      autoTriggeredRef.current = false;
+      setIsFileReady(false);
+      setFileError(null);
     }
+  }, [isOpen]);
+
+  // Track whether the subtitle/MP3 download button is actively fetching
+  const [modalDownloading, setModalDownloading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) setModalDownloading(false);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -285,17 +315,33 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
           </div>
           <div className="px-6 py-5 flex flex-col items-center gap-3 text-center">
             <button
-              onClick={() => {
-                onClose();
+              onClick={async () => {
                 triggerSmartlinkOnce();
-                try { if (downloadUrl) window.open(downloadUrl, '_blank'); } catch (e) { console.error(e); }
+                try {
+                  // Blob download — ensures the browser saves audio, not JSON
+                  const fileRes = await fetch(directStreamUrl);
+                  if (!fileRes.ok) throw new Error('Download failed');
+                  const blob = await fileRes.blob();
+                  const blobUrl = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = blobUrl;
+                  link.download = '';
+                  link.style.display = 'none';
+                  document.body.appendChild(link);
+                  link.click();
+                  setTimeout(() => {
+                    if (document.body.contains(link)) document.body.removeChild(link);
+                    window.URL.revokeObjectURL(blobUrl);
+                  }, 1000);
+                } catch (e) { console.error(e); }
+                onClose();
               }}
               className="w-full max-w-sm bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2"
             >
               <Download className="w-5 h-5" />
               Download Audio File
             </button>
-            <p className="text-[11px] text-gray-400">A new tab will open. If nothing happens, check your pop-up blocker.</p>
+            <p className="text-[11px] text-gray-400">Click the button above to save your audio file.</p>
             <p className="text-[11px] text-gray-400 mt-1">
               Tired of ads?{' '}
               <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }} className="text-indigo-600 font-bold hover:underline">
@@ -311,7 +357,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 border border-slate-200 shadow-2xl relative animate-in fade-in zoom-in duration-200 text-center">
-        {isInlineReady && (
+        {isTimerDone && (
           <button
             onClick={onClose}
             className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
@@ -333,15 +379,20 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
               {type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
               Please wait <strong className="text-indigo-600 text-base">{seconds}s</strong>
             </span>
-          ) : isUrlReady ? (
+          ) : fileError ? (
+            <span className="text-red-600 font-semibold flex items-center gap-1">
+              <AlertCircle className="w-4 h-4" />
+              {fileError}
+            </span>
+          ) : isFileReady || type === 'subtitle' ? (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" />
-              Your file is ready!
+              Your file is ready! Click below to download.
             </span>
           ) : (
             <span className="text-amber-600 font-semibold flex items-center gap-1.5">
               <RefreshCw className="w-4 h-4 animate-spin" />
-              Almost ready — preparing your file...
+              Transcoding your MP3 — please wait...
             </span>
           )}
         </div>
@@ -355,23 +406,56 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
         {/* Progress bar */}
         <div className="w-full bg-slate-100 h-1.5 rounded-full mb-4 overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-1000 ease-linear ${isUrlReady ? 'bg-emerald-500' : 'bg-indigo-600'}`}
+            className={`h-full rounded-full transition-all duration-1000 ease-linear ${(isFileReady || type === 'subtitle') ? 'bg-emerald-500' : 'bg-indigo-600'}`}
             style={{ width: getProgressWidth() }}
           />
         </div>
 
-        {isInlineReady ? (
-          isUrlReady ? (
+        {isTimerDone ? (
+          /* ── File ready: show download button (user must click) ── */
+          (isFileReady || type === 'subtitle') ? (
             <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
-              <a
-                href={directStreamUrl}
-                download
-                onClick={triggerSmartlinkOnce}
-                className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 no-underline"
+              <button
+                disabled={modalDownloading}
+                onClick={async () => {
+                  triggerSmartlinkOnce();
+                  setModalDownloading(true);
+                  try {
+                    // Fetch as blob so the browser saves it as audio, not JSON
+                    const fileRes = await fetch(directStreamUrl);
+                    if (!fileRes.ok) throw new Error('Download failed');
+                    const blob = await fileRes.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = '';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                      if (document.body.contains(link)) document.body.removeChild(link);
+                      window.URL.revokeObjectURL(blobUrl);
+                    }, 1000);
+                  } catch (err) {
+                    console.error('[download] Manual download failed:', err);
+                  } finally {
+                    setModalDownloading(false);
+                  }
+                }}
+                className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-wait"
               >
-                <Download className="w-4 h-4" />
-                {downloadBtnLabel}
-              </a>
+                {modalDownloading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Preparing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    {downloadBtnLabel}
+                  </>
+                )}
+              </button>
               <p className="text-[11px] text-gray-400 mt-1">
                 Tired of ads?{' '}
                 <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}
@@ -380,7 +464,23 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
                 </a>
               </p>
             </div>
+          ) : fileError ? (
+            /* ── Error state ── */
+            <div className="flex flex-col items-center gap-3 animate-in fade-in duration-300">
+              <div className="w-full max-w-sm bg-red-50 text-red-600 font-bold py-3.5 px-8 rounded-2xl text-base flex items-center justify-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Download Failed
+              </div>
+              <p className="text-[11px] text-gray-400">{fileError}</p>
+              <button
+                onClick={onClose}
+                className="text-indigo-600 font-bold text-sm hover:underline"
+              >
+                Try again →
+              </button>
+            </div>
           ) : (
+            /* ── Still transcoding: show spinner, NO download button ── */
             <div className="flex flex-col items-center gap-3 animate-in fade-in duration-300">
               <div className="w-full max-w-sm bg-slate-200 text-slate-500 font-bold py-3.5 px-8 rounded-2xl text-base flex items-center justify-center gap-2 cursor-wait">
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -529,15 +629,40 @@ function HomePageContent() {
 
       mutate('/api/user/limits');
 
-      // Download in same tab via hidden anchor
+      // Poll the status endpoint until the file is ready, THEN download.
+      // This prevents saving a JSON "still processing" error as a file.
       const streamUrl = `/api/download/stream/${data.downloadId}`;
+      const statusUrl = `/api/download/status/${data.downloadId}`;
+
+      let ready = false;
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          const sRes = await fetch(statusUrl);
+          const sData = await sRes.json();
+          if (sData.status === 'ready') { ready = true; break; }
+          if (sData.status === 'error') throw new Error(sData.error || 'Transcoding failed');
+        } catch (e) {
+          throw e;
+        }
+      }
+      if (!ready) throw new Error('Download timed out. Please try again.');
+
+      // File is confirmed ready — download via blob to preserve filename
+      const fileRes = await fetch(streamUrl);
+      if (!fileRes.ok) throw new Error('Failed to download audio file');
+      const blob = await fileRes.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = streamUrl;
+      link.href = blobUrl;
       link.download = data.filename || 'audio.mp3';
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 1000);
     } catch (err: any) {
       setError(err.message);
     }
@@ -586,21 +711,21 @@ function HomePageContent() {
     const sub = result.subtitles[langCode];
     const videoId = result.video.id;
     const isYouTube = url.includes('youtube') || url.includes('youtu.be') || initialUrl.includes('youtube') || initialUrl.includes('youtu.be');
-    
+
     let targetUrl = '';
     if (isYouTube) {
       targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
     } else {
-      const fmtObj = sub.formats?.find((f: any) => 
+      const fmtObj = sub.formats?.find((f: any) =>
         (fmt === 'vtt' && f.ext === 'vtt') ||
         (fmt === 'srt' && (f.ext === 'srt' || f.ext === 'srv1')) ||
         (fmt === 'json3' && (f.ext === 'json3' || f.ext === 'json'))
       );
       targetUrl = fmtObj?.url || sub.formats?.[0]?.url || '';
     }
-    
+
     const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
-    
+
     if (isFree) {
       setAdDownloadUrl(downloadUrl);
       setAdTargetTrack({ downloadType: 'direct', directUrl: downloadUrl });
@@ -640,7 +765,7 @@ function HomePageContent() {
     }
   };
 
-  const handleAdTimerComplete = () => {};
+  const handleAdTimerComplete = () => { };
 
   const handleAdModalClose = () => {
     setAdModalOpen(false);
@@ -699,8 +824,8 @@ function HomePageContent() {
               ? '🔍 Fetching Audio...'
               : '🔍 Fetching Subtitles...'
             : adModalType === 'subtitle'
-            ? '📥 Preparing Subtitles...'
-            : '📥 Preparing High-Speed Stream...'
+              ? '📥 Preparing Subtitles...'
+              : '📥 Preparing High-Speed Stream...'
         }
         type={adModalType}
         onTimerComplete={handleAdTimerComplete}
@@ -717,8 +842,8 @@ function HomePageContent() {
               Your Current Plan: <span className="text-indigo-600 font-extrabold">{limits.planName}</span>
             </h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              {limits.isPro 
-                ? 'Enjoy unlimited high-speed downloads with zero ads.' 
+              {limits.isPro
+                ? 'Enjoy unlimited high-speed downloads with zero ads.'
                 : 'You are on the Free Plan. Enjoy unlimited downloads with ad-supported viewing.'}
             </p>
           </div>
@@ -741,7 +866,7 @@ function HomePageContent() {
         </div>
         <h1>Extract Audio Tracks &amp; Dubbed Voices from YouTube &amp; Facebook Videos — Free</h1>
         <p className="hero-sub">
-          Download original and AI-dubbed audio as MP3 from any YouTube or Facebook video. 
+          Download original and AI-dubbed audio as MP3 from any YouTube or Facebook video.
           Extract subtitles in SRT, VTT, or TXT across 157 languages — no account needed, works on mobile.
         </p>
 
@@ -759,8 +884,8 @@ function HomePageContent() {
             ))}
           </div>
 
-          <form 
-            onSubmit={onExtractSubmit} 
+          <form
+            onSubmit={onExtractSubmit}
             className="tool-box"
           >
             <input
@@ -782,8 +907,8 @@ function HomePageContent() {
               <option value="audio">🎵 Audio</option>
               <option value="subtitles">📝 Subtitles</option>
             </select>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn-extract flex items-center justify-center gap-1.5"
               disabled={loading}
             >
@@ -800,37 +925,37 @@ function HomePageContent() {
         )}
 
         <div className="formats">
-          <span 
+          <span
             className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'audio' ? 'on' : ''}`}
             onClick={() => setActiveTool('audio')}
           >
             <Music className="w-3.5 h-3.5" /> MP3 audio
           </span>
-          <span 
+          <span
             className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'audio' ? 'on' : ''}`}
             onClick={() => setActiveTool('audio')}
           >
             <Volume2 className="w-3.5 h-3.5" /> Dubbed audio
           </span>
-          <span 
+          <span
             className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
             onClick={() => setActiveTool('subtitles')}
           >
             <FileText className="w-3.5 h-3.5" /> SRT subtitles
           </span>
-          <span 
+          <span
             className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
             onClick={() => setActiveTool('subtitles')}
           >
             <FileText className="w-3.5 h-3.5" /> VTT captions
           </span>
-          <span 
+          <span
             className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
             onClick={() => setActiveTool('subtitles')}
           >
             <FileText className="w-3.5 h-3.5" /> TXT transcript
           </span>
-          <span 
+          <span
             className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
             onClick={() => setActiveTool('subtitles')}
           >
@@ -945,8 +1070,8 @@ function HomePageContent() {
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {result.audioTracks.map((track: any, idx: number) => (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-indigo-200 transition-all flex flex-col justify-between atd-card-hover"
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -962,23 +1087,45 @@ function HomePageContent() {
                     </div>
 
                     <div className="space-y-2">
-                      {track.qualities.map((q: any, qIdx: number) => (
-                        <div 
-                          key={qIdx} 
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs"
-                        >
-                          <div>
-                            <span className="font-bold text-gray-700">{q.label} Quality</span>
-                            <span className="text-gray-400 ml-1.5">({q.ext.toUpperCase()} · {formatFileSize(q.filesize)})</span>
-                          </div>
-                          <button
-                            className="btn-pro py-1.5 px-3 flex items-center gap-1.5 text-[11px] rounded-lg shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-150 atd-btn-lift cursor-pointer"
-                            onClick={() => handleDownloadClick({ ...track, formatId: q.formatId, ext: q.ext, directUrl: q.directUrl, downloadType: q.downloadType })}
+                      {track.qualities.map((q: any, qIdx: number) => {
+                        // MP3 requires server transcoding (costs bandwidth).
+                        // Gate it as Pro-only for free users; M4A/WebM direct
+                        // downloads are free (zero server cost).
+                        const isMp3ProLocked = isFree && q.label === 'MP3';
+
+                        return (
+                          <div
+                            key={qIdx}
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs"
                           >
-                            <Download className="w-3.5 h-3.5" /> Download
-                          </button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-gray-700">{q.label} Quality</span>
+                              <span className="text-gray-400">({q.ext.toUpperCase()} · {formatFileSize(q.filesize)})</span>
+                              {isMp3ProLocked && (
+                                <span className="bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">
+                                  <Crown className="w-2.5 h-2.5" /> Pro
+                                </span>
+                              )}
+                            </div>
+                            {isMp3ProLocked ? (
+                              <button
+                                className="py-1.5 px-3 flex items-center gap-1.5 text-[11px] rounded-lg shadow-sm bg-gray-200 hover:bg-indigo-600 text-gray-500 hover:text-white transition-all duration-150 cursor-pointer"
+                                onClick={() => router.push('/pricing')}
+                                title="Upgrade to Pro for MP3 downloads"
+                              >
+                                <Crown className="w-3.5 h-3.5" /> Unlock
+                              </button>
+                            ) : (
+                              <button
+                                className="btn-pro py-1.5 px-3 flex items-center gap-1.5 text-[11px] rounded-lg shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-150 atd-btn-lift cursor-pointer"
+                                onClick={() => handleDownloadClick({ ...track, formatId: q.formatId, ext: q.ext, directUrl: q.directUrl, downloadType: q.downloadType })}
+                              >
+                                <Download className="w-3.5 h-3.5" /> Download
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -991,7 +1138,7 @@ function HomePageContent() {
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-indigo-600" /> Available Subtitle Languages
               </h3>
-              
+
               <input
                 type="text"
                 placeholder="Search languages..."

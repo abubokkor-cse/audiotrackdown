@@ -1,29 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, getDailyDownloadCount } from '@/lib/db/queries';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
-const BACKEND_SECRET = process.env.BACKEND_SECRET || 'shared-secret';
+import { BACKEND_URL, backendHeaders } from '@/lib/backend';
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getUser();
     const { url } = await request.json();
 
     if (!url) {
       return NextResponse.json({ success: false, error: 'URL is required' }, { status: 400 });
     }
 
-    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1';
-
-    const hasActiveSub = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
-
     // Proxy request to Railway Express backend
     const res = await fetch(`${BACKEND_URL}/api/extract`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-backend-secret': BACKEND_SECRET,
-      },
+      headers: backendHeaders(),
       body: JSON.stringify({ url }),
     });
 
