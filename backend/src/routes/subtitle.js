@@ -34,19 +34,18 @@ function getProxyUrl() {
 }
 
 
-const { YTDLP_BIN, BEST_CHROME_TARGET, LANG_NAMES, LANG_FLAGS } = require('../services/ytdlp');
+const { YTDLP_BIN, BEST_CHROME_TARGET } = require('../services/ytdlp');
 
 // ── Route: GET /api/subtitle/info ─────────────────────────────────────────────
 /**
  * Lightweight endpoint: returns only video title + thumbnail for a YouTube URL.
  * Does NOT run audio track extraction — much faster than /api/extract.
- * Uses no proxy and no yt-dlp, making it extremely fast (under 1s) and 100% immune to 429 blocks.
+ * Uses NO proxy so it does not compete with the subtitle download proxy bandwidth.
  * Query params:
- *   url      - YouTube watch URL
- *   original - If 'true', only return natively available tracks (no auto-translations)
+ *   url - YouTube watch URL
  */
 router.get('/info', abuseLimiter, async (req, res) => {
-  const { url, original } = req.query;
+  const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'url is required' });
 
   let parsedUrl;
@@ -62,28 +61,52 @@ router.get('/info', abuseLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Could not extract video ID from URL' });
   }
 
-  const isOriginalOnly = original === 'true';
-
   try {
-    // 1. Fetch metadata via YouTube oEmbed API (super fast, ~100ms, no rate limits)
-    const oEmbedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
-    const metadata = await fetch(oEmbedUrl)
-      .then(r => r.json())
-      .catch(() => ({}));
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const proxyUrl = getProxyUrl();
+    const args = [
+      '--no-update', '--no-warnings',
+      '--dump-single-json',  // only metadata, no download
+      '--skip-download',
+      '--no-playlist',
+      '--extractor-args', 'youtube:player_client=web_embedded&skip=hls,dash',
+      '--impersonate', BEST_CHROME_TARGET,
+    ];
 
-    // 2. Fetch subtitle list via Python script (InnerTube API, ~500ms)
-    const subtitles = await subtitleService.listYouTubeSubtitles(videoId, isOriginalOnly);
+    // DataImpulse is a rotating residential proxy — each request gets its own IP.
+    // So adding proxy here does NOT compete with subtitle download requests.
+    if (proxyUrl) {
+      args.push('--proxy', proxyUrl);
+    }
 
+    args.push(watchUrl);
+
+
+    const stdout = await new Promise((resolve, reject) => {
+      const proc = spawn(YTDLP_BIN, args, { env: { ...process.env } });
+      let out = '';
+      let err = '';
+      proc.stdout.on('data', d => { out += d.toString(); });
+      proc.stderr.on('data', d => { err += d.toString(); });
+      const timer = setTimeout(() => { proc.kill('SIGTERM'); reject(new Error('timeout')); }, 15000);
+      proc.on('close', code => {
+        clearTimeout(timer);
+        if (code === 0) resolve(out);
+        else reject(new Error(err.trim()));
+      });
+      proc.on('error', reject);
+    });
+
+    const info = JSON.parse(stdout);
     return res.json({
       success: true,
       video: {
         id: videoId,
-        title: metadata.title || '',
-        thumbnail: metadata.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        duration: 0,
-        uploader: metadata.author_name || '',
+        title: info.title || '',
+        thumbnail: info.thumbnail || (info.thumbnails?.[0]?.url) || '',
+        duration: info.duration || 0,
+        uploader: info.uploader || '',
       },
-      subtitles,
     });
   } catch (err) {
     console.error('[subtitle/info] Failed:', err.message?.split('\n')[0]);
@@ -170,147 +193,143 @@ router.get('/download', abuseLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Invalid video ID parameter' });
   }
 
-  const isOriginal = req.query.original === 'true';
-
   let rawVtt;
-  let usePythonFallback = isOriginal;
+  let usePythonFallback = false;
 
-  if (!isOriginal) {
-    const tempDir = path.join(os.tmpdir(), `yt-subs-${crypto.randomBytes(8).toString('hex')}`);
-    try {
-      await fs.mkdir(tempDir, { recursive: true });
-      const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const tempDir = path.join(os.tmpdir(), `yt-subs-${crypto.randomBytes(8).toString('hex')}`);
+  try {
+    await fs.mkdir(tempDir, { recursive: true });
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-      // Build yt-dlp argument list matching 2026 anti-bot evasion stack:
-      // Combined Chrome impersonation and client configuration without artificial sleep delays.
-      const buildArgs = ({ useCookies = false, useImpersonate = true, useUserAgent = false, playerClient = 'web' } = {}) => {
-        const args = [
-          '--no-update',
-          '--no-warnings',
-          '--write-subs',
-          '--write-auto-subs',
-          '--sub-langs', langCode,
-          '--skip-download',
-          '--output', path.join(tempDir, 'sub'),
-        ];
-
-        if (useImpersonate) {
-          args.push('--impersonate', BEST_CHROME_TARGET);
-        }
-
-        if (useUserAgent) {
-          args.push(
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            '--add-header', 'Accept-Language: en-US,en;q=0.9'
-          );
-        }
-
-        // formats=missing_pot: proceed even when YouTube demands a PO Token (2025/2026 anti-bot)
-        args.push('--extractor-args', `youtube:player_client=${playerClient}&skip=hls,dash&formats=missing_pot`);
-
-        if (useCookies) {
-          args.push('--cookies-from-browser', 'chrome');
-        }
-
-        const proxyUrl = getProxyUrl();
-        if (proxyUrl) {
-          args.push('--proxy', proxyUrl);
-        }
-        args.push('--no-cache-dir');
-        args.push(watchUrl);
-        return args;
-      };
-
-      // Wrap yt-dlp spawn in a Promise
-      const runYtdlp = (args) => new Promise((resolve, reject) => {
-        const proc = spawn(YTDLP_BIN, args, { env: { ...process.env } });
-
-        let stderr = '';
-        proc.stderr.on('data', d => { stderr += d.toString(); });
-
-        const timer = setTimeout(() => {
-          proc.kill('SIGTERM');
-          reject(new Error('yt-dlp process timed out'));
-        }, config.ytdlp?.timeoutMs || 45000);
-
-        proc.on('close', code => {
-          clearTimeout(timer);
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`yt-dlp subtitle failed: ${stderr.trim()}`));
-          }
-        });
-
-        proc.on('error', err => {
-          clearTimeout(timer);
-          reject(err);
-        });
-      });
-
-      // 2026 Evasion Strategies:
-      const strategies = [
-        // 1. chrome-impersonation + web client (definitive 2026 recommendation)
-        { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'web',                  label: 'optimized-impersonate-web' },
-        // 2. chrome-impersonation + web_embedded,android client (successful audio fallback combo)
-        { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'web_embedded,android', label: 'optimized-impersonate-embedded' },
-        // 3. chrome-impersonation + ios client (succeeded in recent run)
-        { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'ios',                  label: 'ios-impersonate' },
-        // 4. web_embedded,android without impersonation (succeeded in recent run)
-        { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'web_embedded,android', label: 'web_embedded-android-plain' },
-        // 5. User-Agent headers + web client
-        { useCookies: false, useImpersonate: false, useUserAgent: true,  playerClient: 'web',                  label: 'optimized-chrome-ua-web' },
-        // 6. Plain android fallback
-        { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android',              label: 'android-plain' },
+    // Build yt-dlp argument list matching 2026 anti-bot evasion stack:
+    // Combined Chrome impersonation and client configuration without artificial sleep delays.
+    const buildArgs = ({ useCookies = false, useImpersonate = true, useUserAgent = false, playerClient = 'web' } = {}) => {
+      const args = [
+        '--no-update',
+        '--no-warnings',
+        '--write-subs',
+        '--write-auto-subs',
+        '--sub-langs', langCode,
+        '--skip-download',
+        '--output', path.join(tempDir, 'sub'),
       ];
 
-      let lastError = null;
-      for (const strategy of strategies) {
-        try {
-          await runYtdlp(buildArgs(strategy));
-          console.log(`[subtitle] ✓ Strategy "${strategy.label}" succeeded`);
-          lastError = null;
-          break;
-        } catch (err) {
-          const brief = err.message.split('\n')[0].substring(0, 120);
-          console.warn(`[subtitle] ✗ Strategy "${strategy.label}" failed: ${brief}`);
-          lastError = err;
+      if (useImpersonate) {
+        args.push('--impersonate', BEST_CHROME_TARGET);
+      }
 
-          // Wipe partial files before next attempt
-          try {
-            const existing = await fs.readdir(tempDir);
-            for (const f of existing) await fs.unlink(path.join(tempDir, f)).catch(() => { });
-          } catch { /* ignore */ }
+      if (useUserAgent) {
+        args.push(
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          '--add-header', 'Accept-Language: en-US,en;q=0.9'
+        );
+      }
 
-          // Wait 2 seconds before the next strategy to bypass anti-burst bot filters
-          await new Promise(resolve => setTimeout(resolve, 2000));
+      // formats=missing_pot: proceed even when YouTube demands a PO Token (2025/2026 anti-bot)
+      args.push('--extractor-args', `youtube:player_client=${playerClient}&skip=hls,dash&formats=missing_pot`);
+
+      if (useCookies) {
+        args.push('--cookies-from-browser', 'chrome');
+      }
+
+      const proxyUrl = getProxyUrl();
+      if (proxyUrl) {
+        args.push('--proxy', proxyUrl);
+      }
+      args.push('--no-cache-dir');
+      args.push(watchUrl);
+      return args;
+    };
+
+    // Wrap yt-dlp spawn in a Promise
+    const runYtdlp = (args) => new Promise((resolve, reject) => {
+      const proc = spawn(YTDLP_BIN, args, { env: { ...process.env } });
+
+      let stderr = '';
+      proc.stderr.on('data', d => { stderr += d.toString(); });
+
+      const timer = setTimeout(() => {
+        proc.kill('SIGTERM');
+        reject(new Error('yt-dlp process timed out'));
+      }, config.ytdlp?.timeoutMs || 45000);
+
+      proc.on('close', code => {
+        clearTimeout(timer);
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`yt-dlp subtitle failed: ${stderr.trim()}`));
         }
-      }
+      });
 
-      if (lastError) throw lastError;
+      proc.on('error', err => {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
 
-      // Find the subtitle file yt-dlp wrote
-      const files = await fs.readdir(tempDir);
-      const subFile = files.find(f => f.startsWith('sub.') && f.endsWith('.vtt'));
-      if (!subFile) {
-        throw new Error('No VTT subtitle file found in output — video may not have subtitles in the requested language');
-      }
+    // 2026 Evasion Strategies:
+    const strategies = [
+      // 1. chrome-impersonation + web client (definitive 2026 recommendation)
+      { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'web',                  label: 'optimized-impersonate-web' },
+      // 2. chrome-impersonation + web_embedded,android client (successful audio fallback combo)
+      { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'web_embedded,android', label: 'optimized-impersonate-embedded' },
+      // 3. chrome-impersonation + ios client (succeeded in recent run)
+      { useCookies: false, useImpersonate: true,  useUserAgent: false, playerClient: 'ios',                  label: 'ios-impersonate' },
+      // 4. web_embedded,android without impersonation (succeeded in recent run)
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'web_embedded,android', label: 'web_embedded-android-plain' },
+      // 5. User-Agent headers + web client
+      { useCookies: false, useImpersonate: false, useUserAgent: true,  playerClient: 'web',                  label: 'optimized-chrome-ua-web' },
+      // 6. Plain android fallback
+      { useCookies: false, useImpersonate: false, useUserAgent: false, playerClient: 'android',              label: 'android-plain' },
+    ];
 
-      rawVtt = await fs.readFile(path.join(tempDir, subFile), 'utf8');
-      console.log(`[subtitle] ✓ yt-dlp fetch succeeded for video: ${videoId}`);
-
-    } catch (err) {
-      console.warn(`[subtitle] ✗ yt-dlp fetch failed: ${err.message}. Falling back to Python InnerTube API...`);
-      usePythonFallback = true;
-    } finally {
-      // Always clean up temp directory
+    let lastError = null;
+    for (const strategy of strategies) {
       try {
-        const files = await fs.readdir(tempDir).catch(() => []);
-        for (const f of files) await fs.unlink(path.join(tempDir, f)).catch(() => { });
-        await fs.rmdir(tempDir).catch(() => { });
-      } catch { /* ignore */ }
+        await runYtdlp(buildArgs(strategy));
+        console.log(`[subtitle] ✓ Strategy "${strategy.label}" succeeded`);
+        lastError = null;
+        break;
+      } catch (err) {
+        const brief = err.message.split('\n')[0].substring(0, 120);
+        console.warn(`[subtitle] ✗ Strategy "${strategy.label}" failed: ${brief}`);
+        lastError = err;
+
+        // Wipe partial files before next attempt
+        try {
+          const existing = await fs.readdir(tempDir);
+          for (const f of existing) await fs.unlink(path.join(tempDir, f)).catch(() => { });
+        } catch { /* ignore */ }
+
+        // Wait 2 seconds before the next strategy to bypass anti-burst bot filters
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
+
+    if (lastError) throw lastError;
+
+    // Find the subtitle file yt-dlp wrote
+    const files = await fs.readdir(tempDir);
+    const subFile = files.find(f => f.startsWith('sub.') && f.endsWith('.vtt'));
+    if (!subFile) {
+      throw new Error('No VTT subtitle file found in output — video may not have subtitles in the requested language');
+    }
+
+    rawVtt = await fs.readFile(path.join(tempDir, subFile), 'utf8');
+    console.log(`[subtitle] ✓ yt-dlp fetch succeeded for video: ${videoId}`);
+
+  } catch (err) {
+    console.warn(`[subtitle] ✗ yt-dlp fetch failed: ${err.message}. Falling back to Python InnerTube API...`);
+    usePythonFallback = true;
+  } finally {
+    // Always clean up temp directory
+    try {
+      const files = await fs.readdir(tempDir).catch(() => []);
+      for (const f of files) await fs.unlink(path.join(tempDir, f)).catch(() => { });
+      await fs.rmdir(tempDir).catch(() => { });
+    } catch { /* ignore */ }
   }
 
   if (usePythonFallback) {

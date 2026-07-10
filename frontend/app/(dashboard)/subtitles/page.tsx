@@ -1,4 +1,4 @@
-'use client'; // trigger deploy
+'use client';
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -26,28 +26,6 @@ import {
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-const translateLanguages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'bn', name: 'Bangla', flag: '🇧🇩' },
-  { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
-  { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
-  { code: 'fr', name: 'French', flag: '🇫🇷' },
-  { code: 'de', name: 'German', flag: '🇩🇪' },
-  { code: 'pt', name: 'Portuguese', flag: '🇧🇷' },
-  { code: 'ru', name: 'Russian', flag: '🇷🇺' },
-  { code: 'ja', name: 'Japanese', flag: '🇯🇵' },
-  { code: 'ko', name: 'Korean', flag: '🇰🇷' },
-  { code: 'it', name: 'Italian', flag: '🇮🇹' },
-  { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
-  { code: 'th', name: 'Thai', flag: '🇹🇭' },
-  { code: 'vi', name: 'Vietnamese', flag: '🇻🇳' },
-  { code: 'id', name: 'Indonesian', flag: '🇮🇩' },
-  { code: 'nl', name: 'Dutch', flag: '🇳🇱' },
-  { code: 'pl', name: 'Polish', flag: '🇵🇱' },
-  { code: 'sv', name: 'Swedish', flag: '🇸🇪' },
-];
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -539,9 +517,8 @@ function SubtitlesPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
-  const [activeTool, setActiveTool] = useState<'audio' | 'subtitles' | 'auto-translate'>('subtitles');
+  const [activeTool, setActiveTool] = useState<'audio' | 'subtitles'>('subtitles');
   const [subSearch, setSubSearch] = useState('');
-  const [translationLang, setTranslationLang] = useState('en');
 
   const [adModalOpen, setAdModalOpen] = useState(false);
   const [adModalType, setAdModalType] = useState<'extract' | 'download' | 'subtitle'>('extract');
@@ -553,6 +530,12 @@ function SubtitlesPageContent() {
     revalidateOnFocus: true,
   });
   const isFree = !limits || !limits.isPro;
+
+  useEffect(() => {
+    if (initialUrl) {
+      handleExtract(initialUrl);
+    }
+  }, [initialUrl]);
 
   const handleExtract = useCallback(async (extractUrl?: string) => {
     const targetUrl = extractUrl || url.trim();
@@ -574,7 +557,7 @@ function SubtitlesPageContent() {
 
     try {
       const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      const infoUrl = `${BACKEND_URL}/api/subtitle/info?url=${encodeURIComponent(targetUrl)}&original=true`;
+      const infoUrl = `${BACKEND_URL}/api/subtitle/info?url=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(infoUrl);
 
       const data = await res.json();
@@ -592,7 +575,6 @@ function SubtitlesPageContent() {
           uploader: data.video.uploader,
           id: data.video.id,
         },
-        subtitles: data.subtitles || {},
         audioTracks: [],
       });
     } catch (err: any) {
@@ -601,12 +583,6 @@ function SubtitlesPageContent() {
       setLoading(false);
     }
   }, [url]);
-
-  useEffect(() => {
-    if (initialUrl) {
-      handleExtract(initialUrl);
-    }
-  }, [initialUrl, handleExtract]);
 
 
   const onExtractSubmit = (e: React.FormEvent) => {
@@ -697,11 +673,11 @@ function SubtitlesPageContent() {
     }
   };
 
-  const handleSubtitleDownloadClick = async (langCode: string, fmt: string, isOriginalDownload = true) => {
+  const handleSubtitleDownloadClick = async (langCode: string, fmt: string) => {
     const key = `${langCode}-${fmt}`;
     if (preparingSubtitle[key]) return;
 
-    const sub = result.subtitles?.[langCode];
+    const sub = result.subtitles[langCode];
     const videoId = result.video.id;
     const isYouTube = url.includes('youtube') || url.includes('youtu.be') || initialUrl.includes('youtube') || initialUrl.includes('youtu.be');
     
@@ -709,15 +685,15 @@ function SubtitlesPageContent() {
     if (isYouTube) {
       targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
     } else {
-      const fmtObj = sub?.formats?.find((f: any) => 
+      const fmtObj = sub.formats?.find((f: any) => 
         (fmt === 'vtt' && f.ext === 'vtt') ||
         (fmt === 'srt' && (f.ext === 'srt' || f.ext === 'srv1')) ||
         (fmt === 'json3' && (f.ext === 'json3' || f.ext === 'json'))
       );
-      targetUrl = fmtObj?.url || sub?.formats?.[0]?.url || '';
+      targetUrl = fmtObj?.url || sub.formats?.[0]?.url || '';
     }
     
-    const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}${isOriginalDownload ? '&original=true' : ''}`;
+    const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
     
     if (isFree) {
       setAdDownloadUrl(downloadUrl);
@@ -782,18 +758,14 @@ function SubtitlesPageContent() {
       : `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  const filteredSubtitles = activeTool === 'auto-translate'
-    ? translateLanguages.filter(lang => 
-        lang.name.toLowerCase().includes(subSearch.toLowerCase()) ||
-        lang.code.toLowerCase().includes(subSearch.toLowerCase())
-      ).map(lang => lang.code)
-    : (result?.subtitles ? Object.keys(result.subtitles).filter((langCode) => {
-        const sub = result.subtitles[langCode];
-        return (
-          sub.langName.toLowerCase().includes(subSearch.toLowerCase()) ||
-          langCode.toLowerCase().includes(subSearch.toLowerCase())
-        );
-      }) : []);
+  const subtitleLanguages = result?.subtitles ? Object.keys(result.subtitles) : [];
+  const filteredSubtitles = subtitleLanguages.filter((langCode) => {
+    const sub = result.subtitles[langCode];
+    return (
+      sub.langName.toLowerCase().includes(subSearch.toLowerCase()) ||
+      langCode.toLowerCase().includes(subSearch.toLowerCase())
+    );
+  });
 
   const focusInput = () => {
     const inp = document.getElementById('url-inp');
@@ -881,48 +853,6 @@ function SubtitlesPageContent() {
             ))}
           </div>
 
-          {/* Premium Segmented Tool Switcher */}
-          <div className="flex flex-col items-center gap-2 mb-4">
-            <div className="flex justify-center gap-2 bg-slate-100/80 p-1 rounded-2xl max-w-sm w-full border border-slate-200/50 backdrop-blur-sm">
-              <button
-                type="button"
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTool === 'subtitles'
-                    ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50/50'
-                }`}
-                onClick={() => setActiveTool('subtitles')}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                Original Subtitles (Fast)
-              </button>
-              <button
-                type="button"
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTool === 'auto-translate'
-                    ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50/50'
-                }`}
-                onClick={() => setActiveTool('auto-translate')}
-              >
-                <Globe className="w-3.5 h-3.5" />
-                Auto-Translate
-              </button>
-            </div>
-            
-            <button
-              type="button"
-              className="text-[11px] text-slate-500 hover:text-indigo-600 font-semibold flex items-center gap-1 mt-1 transition-colors cursor-pointer"
-              onClick={() => {
-                const targetPath = url.trim() ? `/?url=${encodeURIComponent(url.trim())}` : '/';
-                router.push(targetPath);
-              }}
-            >
-              <Music className="w-3 h-3" />
-              Need dubbed audio tracks? Extract Audio Tracks instead →
-            </button>
-          </div>
-
           <form 
             onSubmit={onExtractSubmit} 
             className="tool-box"
@@ -937,6 +867,15 @@ function SubtitlesPageContent() {
               disabled={loading}
               required
             />
+            <select
+              className="type-select"
+              value={activeTool}
+              onChange={(e) => setActiveTool(e.target.value as 'audio' | 'subtitles')}
+              disabled={loading}
+            >
+              <option value="subtitles">📝 Subtitles</option>
+              <option value="audio">🎵 Audio</option>
+            </select>
             <button 
               type="submit" 
               className="btn-extract flex items-center justify-center gap-1.5"
@@ -974,8 +913,8 @@ function SubtitlesPageContent() {
             <FileText className="w-3.5 h-3.5" /> TXT transcript
           </span>
           <span 
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'auto-translate' ? 'on' : ''}`}
-            onClick={() => setActiveTool('auto-translate')}
+            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
+            onClick={() => setActiveTool('subtitles')}
           >
             <Globe className="w-3.5 h-3.5" /> Auto-translated
           </span>
@@ -1087,13 +1026,10 @@ function SubtitlesPageContent() {
             </div>
           </div>
 
-          {(activeTool === 'subtitles' || activeTool === 'auto-translate') && (
+          {activeTool === 'subtitles' && (
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-600" />
-                {activeTool === 'subtitles'
-                  ? 'Available Subtitle Languages (Original)'
-                  : 'Auto-Translate Subtitles (by YouTube)'}
+                <FileText className="w-5 h-5 text-indigo-600" /> Available Subtitle Languages
               </h3>
               
               <input
@@ -1106,14 +1042,7 @@ function SubtitlesPageContent() {
 
               <div className="grid sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2">
                 {filteredSubtitles.map((langCode) => {
-                  const sub = activeTool === 'auto-translate'
-                    ? {
-                        flag: translateLanguages.find(l => l.code === langCode)?.flag || '🌐',
-                        langName: translateLanguages.find(l => l.code === langCode)?.name || langCode.toUpperCase(),
-                        isAutoGenerated: true
-                      }
-                    : result.subtitles[langCode];
-                  const isOriginalDownload = activeTool === 'subtitles';
+                  const sub = result.subtitles[langCode];
 
                   return (
                     <div
@@ -1135,7 +1064,7 @@ function SubtitlesPageContent() {
 
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleSubtitleDownloadClick(langCode, 'vtt', isOriginalDownload)}
+                          onClick={() => handleSubtitleDownloadClick(langCode, 'vtt')}
                           disabled={preparingSubtitle[`${langCode}-vtt`]}
                           className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                         >
@@ -1147,7 +1076,7 @@ function SubtitlesPageContent() {
                           VTT
                         </button>
                         <button
-                          onClick={() => handleSubtitleDownloadClick(langCode, 'srt', isOriginalDownload)}
+                          onClick={() => handleSubtitleDownloadClick(langCode, 'srt')}
                           disabled={preparingSubtitle[`${langCode}-srt`]}
                           className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                         >
@@ -1159,7 +1088,7 @@ function SubtitlesPageContent() {
                           SRT
                         </button>
                         <button
-                          onClick={() => handleSubtitleDownloadClick(langCode, 'json3', isOriginalDownload)}
+                          onClick={() => handleSubtitleDownloadClick(langCode, 'json3')}
                           disabled={preparingSubtitle[`${langCode}-json3`]}
                           className="flex-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-center font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-200 hover:border-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                         >

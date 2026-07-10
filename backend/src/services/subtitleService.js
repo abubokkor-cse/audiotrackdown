@@ -227,91 +227,61 @@ function fetchYouTubeSubtitles(videoId, langCode) {
   return new Promise((resolve, reject) => {
     console.log(`[subtitleService] Fetching transcript via InnerTube for video: ${videoId}, lang: ${langCode}`);
 
-    const runFetch = (useProxy) => {
-      console.log(`[subtitleService] Running Python fetch script | proxy = ${useProxy}`);
-      const env = { ...process.env };
-      
-      if (useProxy) {
-        const proxyUrl = getProxyUrl();
-        if (proxyUrl) {
-          env.ROTATING_PROXIES = proxyUrl;
-          env.HTTP_PROXY = proxyUrl;
-          env.HTTPS_PROXY = proxyUrl;
-          env.http_proxy = proxyUrl;
-          env.https_proxy = proxyUrl;
+    const env = { ...process.env };
+    const proxyUrl = getProxyUrl();
+    if (proxyUrl) {
+      env.ROTATING_PROXIES = proxyUrl;
+      env.HTTP_PROXY = proxyUrl;
+      env.HTTPS_PROXY = proxyUrl;
+      env.http_proxy = proxyUrl;
+      env.https_proxy = proxyUrl;
+    }
+
+    const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, videoId, langCode], {
+      env
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    proc.on('close', async (code) => {
+      if (code !== 0) {
+        let errMsg = `Process exited with code ${code}`;
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          errMsg = parsed.error || errMsg;
+        } catch {
+          if (stderr.trim()) errMsg = stderr.trim();
         }
-      } else {
-        // Clear proxy variables to force direct connection
-        delete env.ROTATING_PROXIES;
-        delete env.HTTP_PROXY;
-        delete env.HTTPS_PROXY;
-        delete env.http_proxy;
-        delete env.https_proxy;
+        return reject(new Error(`Python fetch script failed: ${errMsg}`));
       }
 
-      const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, videoId, langCode], {
-        env
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      proc.stdout.on('data', d => { stdout += d.toString(); });
-      proc.stderr.on('data', d => { stderr += d.toString(); });
-
-      proc.on('close', async (code) => {
-        if (code !== 0) {
-          console.warn(`[subtitleService] Python fetch script failed (proxy: ${useProxy}). Code: ${code}, Stdout: "${stdout.trim()}", Stderr: "${stderr.trim()}"`);
-          
-          if (useProxy) {
-            console.log(`[subtitleService] Retrying Python fetch script WITHOUT proxies...`);
-            return runFetch(false);
-          }
-
-          let errMsg = `Process exited with code ${code}`;
-          try {
-            const parsed = JSON.parse(stdout.trim());
-            errMsg = parsed.error || errMsg;
-          } catch {
-            if (stderr.trim()) errMsg = stderr.trim();
-          }
-          return reject(new Error(`Python fetch script failed: ${errMsg}`));
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (!result.success) {
+          return reject(new Error(result.error || 'Failed to fetch transcript.'));
         }
 
-        try {
-          const result = JSON.parse(stdout.trim());
-          if (!result.success) {
-            if (useProxy) {
-              console.warn(`[subtitleService] Python fetch returned failure (proxy: true). Retrying WITHOUT proxies...`);
-              return runFetch(false);
-            }
-            return reject(new Error(result.error || 'Failed to fetch transcript.'));
-          }
-
-          if (result.requires_gemini_translation) {
-            // Native YouTube translation unavailable — return original transcript directly.
-            // Gemini translation removed: too costly and unreliable for production.
-            console.log(`[subtitleService] Native translation unavailable. Returning original transcript for: ${langCode}`);
-            return resolve(result.vtt);
-          }
-
-          // Returns direct VTT from YouTube (original or translated natively)
-          resolve(result.vtt);
-        } catch (err) {
-          reject(new Error(`Failed to parse Python script output: ${err.message}`));
+        if (result.requires_gemini_translation) {
+          // Native YouTube translation unavailable — return original transcript directly.
+          // Gemini translation removed: too costly and unreliable for production.
+          console.log(`[subtitleService] Native translation unavailable. Returning original transcript for: ${langCode}`);
+          return resolve(result.vtt);
         }
-      });
 
-      proc.on('error', err => {
-        if (useProxy) {
-          console.warn(`[subtitleService] Spawn fetch error with proxy. Retrying WITHOUT proxies...`);
-          return runFetch(false);
-        }
-        reject(new Error(`Failed to spawn Python process: ${err.message}`));
-      });
-    };
+        // Returns direct VTT from YouTube (original or translated natively)
+        resolve(result.vtt);
+      } catch (err) {
+        reject(new Error(`Failed to parse Python script output: ${err.message}`));
+      }
+    });
 
-    runFetch(true); // Start with proxy
+    proc.on('error', err => {
+      reject(new Error(`Failed to spawn Python process: ${err.message}`));
+    });
   });
 }
 
@@ -355,117 +325,85 @@ const LANG_FLAGS = {
  * @param {string} videoId
  * @returns {Promise<object>} Map of language code to subtitle details
  */
-function listYouTubeSubtitles(videoId, originalOnly = false) {
+function listYouTubeSubtitles(videoId) {
   return new Promise((resolve, reject) => {
     console.log(`[subtitleService] Listing transcripts via InnerTube for video: ${videoId}`);
 
-    const runList = (useProxy) => {
-      console.log(`[subtitleService] Running Python list script | proxy = ${useProxy}`);
-      const env = { ...process.env };
-      
-      if (useProxy) {
-        const proxyUrl = getProxyUrl();
-        if (proxyUrl) {
-          env.ROTATING_PROXIES = proxyUrl;
-          env.HTTP_PROXY = proxyUrl;
-          env.HTTPS_PROXY = proxyUrl;
-          env.http_proxy = proxyUrl;
-          env.https_proxy = proxyUrl;
+    const env = { ...process.env };
+    if (process.env.ROTATING_PROXIES) {
+      env.HTTP_PROXY = process.env.ROTATING_PROXIES;
+      env.HTTPS_PROXY = process.env.ROTATING_PROXIES;
+      env.http_proxy = process.env.ROTATING_PROXIES;
+      env.https_proxy = process.env.ROTATING_PROXIES;
+    }
+
+    const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, '--list', videoId], {
+      env
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        let errMsg = `Process exited with code ${code}`;
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          errMsg = parsed.error || errMsg;
+        } catch {
+          if (stderr.trim()) errMsg = stderr.trim();
         }
-      } else {
-        // Clear proxy variables to force direct connection
-        delete env.ROTATING_PROXIES;
-        delete env.HTTP_PROXY;
-        delete env.HTTPS_PROXY;
-        delete env.http_proxy;
-        delete env.https_proxy;
+        return reject(new Error(`Python list script failed: ${errMsg}`));
       }
 
-      const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, '--list', videoId], {
-        env
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      proc.stdout.on('data', d => { stdout += d.toString(); });
-      proc.stderr.on('data', d => { stderr += d.toString(); });
-
-      proc.on('close', (code) => {
-        if (code !== 0) {
-          console.warn(`[subtitleService] Python list script failed (proxy: ${useProxy}). Code: ${code}, Stdout: "${stdout.trim()}", Stderr: "${stderr.trim()}"`);
-          
-          if (useProxy) {
-            console.log(`[subtitleService] Retrying Python list script WITHOUT proxies...`);
-            return runList(false);
-          }
-
-          let errMsg = `Process exited with code ${code}`;
-          try {
-            const parsed = JSON.parse(stdout.trim());
-            errMsg = parsed.error || errMsg;
-          } catch {
-            if (stderr.trim()) errMsg = stderr.trim();
-          }
-          return reject(new Error(`Python list script failed: ${errMsg}`));
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (!result.success) {
+          return reject(new Error(result.error || 'Failed to list transcripts.'));
         }
 
-        try {
-          const result = JSON.parse(stdout.trim());
-          if (!result.success) {
-            if (useProxy) {
-              console.warn(`[subtitleService] Python script returned failure (proxy: true). Retrying WITHOUT proxies...`);
-              return runList(false);
-            }
-            return reject(new Error(result.error || 'Failed to list transcripts.'));
-          }
+        const subtitles = {};
 
-          const subtitles = {};
+        // Populate using original transcripts
+        for (const t of result.transcripts) {
+          const lang = t.language_code;
 
-          // Populate using original transcripts
-          for (const t of result.transcripts) {
-            const lang = t.language_code;
+          subtitles[lang] = {
+            langName: LANG_NAMES[lang] || t.language || lang.toUpperCase(),
+            flag: LANG_FLAGS[lang] || '🌐',
+            formats: [{ ext: 'vtt', url: `https://www.youtube.com/watch?v=${videoId}` }],
+            isAutoGenerated: t.is_generated
+          };
 
-            subtitles[lang] = {
-              langName: LANG_NAMES[lang] || t.language || lang.toUpperCase(),
-              flag: LANG_FLAGS[lang] || '🌐',
-              formats: [{ ext: 'vtt', url: `https://www.youtube.com/watch?v=${videoId}` }],
-              isAutoGenerated: t.is_generated
-            };
-
-            // Also add translation target languages if originalOnly is false
-            if (!originalOnly && t.translation_languages && t.translation_languages.length > 0) {
-              for (const tl of t.translation_languages) {
-                const tlLang = tl.language_code;
-                // Avoid overwriting a native/manually uploaded or direct transcript with an auto-translation
-                if (!subtitles[tlLang]) {
-                  subtitles[tlLang] = {
-                    langName: LANG_NAMES[tlLang] || tl.language || tlLang.toUpperCase(),
-                    flag: LANG_FLAGS[tlLang] || '🌐',
-                    formats: [{ ext: 'vtt', url: `https://www.youtube.com/watch?v=${videoId}` }],
-                    isAutoGenerated: true // auto-translation is considered generated
-                  };
-                }
+          // Also add translation target languages
+          if (t.translation_languages && t.translation_languages.length > 0) {
+            for (const tl of t.translation_languages) {
+              const tlLang = tl.language_code;
+              // Avoid overwriting a native/manually uploaded or direct transcript with an auto-translation
+              if (!subtitles[tlLang]) {
+                subtitles[tlLang] = {
+                  langName: LANG_NAMES[tlLang] || tl.language || tlLang.toUpperCase(),
+                  flag: LANG_FLAGS[tlLang] || '🌐',
+                  formats: [{ ext: 'vtt', url: `https://www.youtube.com/watch?v=${videoId}` }],
+                  isAutoGenerated: true // auto-translation is considered generated
+                };
               }
             }
           }
-
-          resolve(subtitles);
-        } catch (err) {
-          reject(new Error(`Failed to parse Python list script output: ${err.message}`));
         }
-      });
 
-      proc.on('error', err => {
-        if (useProxy) {
-          console.warn(`[subtitleService] Spawn error with proxy. Retrying WITHOUT proxies...`);
-          return runList(false);
-        }
-        reject(new Error(`Failed to spawn Python list process: ${err.message}`));
-      });
-    };
+        resolve(subtitles);
+      } catch (err) {
+        reject(new Error(`Failed to parse Python list script output: ${err.message}`));
+      }
+    });
 
-    runList(true); // Start with proxy
+    proc.on('error', err => {
+      reject(new Error(`Failed to spawn Python list process: ${err.message}`));
+    });
   });
 }
 
