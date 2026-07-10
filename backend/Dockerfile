@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install curl_cffi and pysocks to allow yt-dlp to impersonate browser TLS signatures and use SOCKS5h proxies with remote DNS resolution
-RUN pip3 install --break-system-packages curl_cffi pysocks youtube-transcript-api
+RUN pip3 install --break-system-packages --upgrade curl_cffi pysocks youtube-transcript-api
 
 
 # Download and install latest yt-dlp binary (same version as local dev environment)
