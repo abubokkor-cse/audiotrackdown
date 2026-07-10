@@ -165,6 +165,7 @@ router.get('/info', abuseLimiter, async (req, res) => {
         duration: info.duration || 0,
         uploader: info.uploader || '',
       },
+      originalLang: info.language || null,
       subtitles: subtitleMap,
     });
   } catch (err) {
