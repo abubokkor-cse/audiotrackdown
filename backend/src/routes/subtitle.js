@@ -63,6 +63,7 @@ router.get('/info', abuseLimiter, async (req, res) => {
 
   try {
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const proxyUrl = getProxyUrl();
     const args = [
       '--no-update', '--no-warnings',
       '--dump-single-json',  // only metadata, no download
@@ -70,9 +71,16 @@ router.get('/info', abuseLimiter, async (req, res) => {
       '--no-playlist',
       '--extractor-args', 'youtube:player_client=web_embedded&skip=hls,dash',
       '--impersonate', BEST_CHROME_TARGET,
-      // No --proxy here — avoids competing with subtitle download proxy bandwidth
-      watchUrl,
     ];
+
+    // DataImpulse is a rotating residential proxy — each request gets its own IP.
+    // So adding proxy here does NOT compete with subtitle download requests.
+    if (proxyUrl) {
+      args.push('--proxy', proxyUrl);
+    }
+
+    args.push(watchUrl);
+
 
     const stdout = await new Promise((resolve, reject) => {
       const proc = spawn(YTDLP_BIN, args, { env: { ...process.env } });
