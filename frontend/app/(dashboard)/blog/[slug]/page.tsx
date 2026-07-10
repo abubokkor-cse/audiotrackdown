@@ -181,7 +181,61 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     });
   };
 
+  // ── JSON-LD Structured Data (SEO) ──────────────────────────────────────────
+  const baseUrl = 'https://www.audiotrackdown.com';
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.description,
+    image: featuredImage,
+    datePublished: post.publishedAt,
+    dateModified: post.publishedAt,
+    author: {
+      '@type': 'Organization',
+      name: 'AudioTrackDown',
+      url: baseUrl,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'AudioTrackDown',
+      url: baseUrl,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${baseUrl}/logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${baseUrl}/blog/${post.slug}`,
+    },
+    keywords: post.tags.join(', '),
+    url: `${baseUrl}/blog/${post.slug}`,
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home',  item: baseUrl },
+      { '@type': 'ListItem', position: 2, name: 'Blog',  item: `${baseUrl}/blog` },
+      { '@type': 'ListItem', position: 3, name: post.title, item: `${baseUrl}/blog/${post.slug}` },
+    ],
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   return (
+    <>
+      {/* JSON-LD structured data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+
     <article className="post-container">
       <style dangerouslySetInnerHTML={{ __html: `
         .post-container {
@@ -488,5 +542,6 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         </aside>
       </div>
     </article>
+    </>
   );
 }
