@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next';
+import { SEO_TOOL_PAGES } from '../lib/seo-tools';
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = 'https://audiotrackdown.com';
     const lastModified = new Date();
 
-    return [
+    const staticRoutes: MetadataRoute.Sitemap = [
         {
             url: `${baseUrl}/`,
             lastModified,
@@ -114,4 +115,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.3,
         },
     ];
+
+    const dynamicSEORoutes: MetadataRoute.Sitemap = SEO_TOOL_PAGES.map((page) => ({
+        url: `${baseUrl}/${page.slug}`,
+        lastModified,
+        changeFrequency: 'weekly',
+        priority: 0.8,
+    }));
+
+    return [...staticRoutes, ...dynamicSEORoutes];
 }
