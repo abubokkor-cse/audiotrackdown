@@ -201,21 +201,22 @@ router.get('/download', abuseLimiter, async (req, res) => {
     await fs.mkdir(tempDir, { recursive: true });
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-    // Build yt-dlp argument list for a given strategy
-    const buildArgs = ({ useCookies = false, useImpersonate = true } = {}) => {
+    // web_embedded + android: previously working clients with separate rate-limit quotas.
+    // formats=missing_pot: bypass YouTube's PO Token requirement (2025 change).
+    // No --sleep-requests: DataImpulse rotates IPs per request, so delays are pointless.
+    const buildArgs = ({ useCookies = false, useImpersonate = true, playerClient = 'web_embedded,android' } = {}) => {
       const args = [
-        '--no-update',             // suppress version nag
-        '--no-warnings',           // quiet output
+        '--no-update',
+        '--no-warnings',
         '--write-subs',
         '--write-auto-subs',
         '--sub-langs', langCode,
         '--skip-download',
         '--output', path.join(tempDir, 'sub'),
-        // Mimic a real browser
         '--add-header', 'Accept-Language:en-US,en;q=0.9',
         '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        '--sleep-requests', '1',   // throttle to avoid 429
-        '--extractor-args', 'youtube:player_client=web_embedded,android&skip=hls,dash',
+        // formats=missing_pot: proceed even when YouTube demands a PO Token (2025 anti-bot)
+        '--extractor-args', `youtube:player_client=${playerClient}&skip=hls,dash&formats=missing_pot`,
       ];
 
       if (useImpersonate) {
@@ -243,10 +244,11 @@ router.get('/download', abuseLimiter, async (req, res) => {
       let stderr = '';
       proc.stderr.on('data', d => { stderr += d.toString(); });
 
+      // 12s per strategy — fast-fail so Python InnerTube fallback is reached quickly
       const timer = setTimeout(() => {
         proc.kill('SIGTERM');
         reject(new Error('yt-dlp process timed out'));
-      }, config.ytdlp?.timeoutMs || 45000);
+      }, 12000);
 
       proc.on('close', code => {
         clearTimeout(timer);
@@ -263,12 +265,12 @@ router.get('/download', abuseLimiter, async (req, res) => {
       });
     });
 
-    // Try four strategies in order — stop at first success
+    // Strategies — web_embedded+android worked previously, try both with and without impersonate
     const strategies = [
-      { useCookies: false, useImpersonate: true, label: 'impersonate' },
-      { useCookies: true, useImpersonate: true, label: 'cookies+impersonate' },
-      { useCookies: true, useImpersonate: false, label: 'cookies-only' },
-      { useCookies: false, useImpersonate: false, label: 'plain' },
+      { useCookies: false, useImpersonate: true,  playerClient: 'web_embedded,android', label: 'web_embedded+android+impersonate' },
+      { useCookies: false, useImpersonate: false, playerClient: 'web_embedded,android', label: 'web_embedded+android-plain'        },
+      { useCookies: false, useImpersonate: true,  playerClient: 'ios',                  label: 'ios+impersonate'                   },
+      { useCookies: false, useImpersonate: false, playerClient: 'android',              label: 'android-plain'                     },
     ];
 
     let lastError = null;
