@@ -65,7 +65,7 @@ router.get('/info', abuseLimiter, async (req, res) => {
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const proxyUrl = getProxyUrl();
 
-    const buildArgs = ({ useImpersonate = true, playerClient = 'web_embedded' } = {}) => {
+    const buildArgs = ({ useImpersonate = true, useUserAgent = false, playerClient = 'web_embedded' } = {}) => {
       const args = [
         '--no-update', '--no-warnings',
         '--dump-single-json',  // only metadata, no download
@@ -75,6 +75,13 @@ router.get('/info', abuseLimiter, async (req, res) => {
       ];
       if (useImpersonate) {
         args.push('--impersonate', BEST_CHROME_TARGET);
+      }
+      if (useUserAgent) {
+        args.push(
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          '--add-header', 'Accept-Language: en-US,en;q=0.9'
+        );
       }
       if (proxyUrl) {
         args.push('--proxy', proxyUrl);
@@ -100,21 +107,25 @@ router.get('/info', abuseLimiter, async (req, res) => {
     });
 
     const strategies = [
-      { useImpersonate: true,  playerClient: 'web_embedded' },
-      { useImpersonate: true,  playerClient: 'ios'          },
-      { useImpersonate: false, playerClient: 'android'      },
+      { useImpersonate: true,  useUserAgent: false, playerClient: 'android,web_embedded', label: 'optimized-impersonate' },
+      { useImpersonate: false, useUserAgent: true,  playerClient: 'android,web_embedded', label: 'optimized-chrome-ua' },
+      { useImpersonate: false, useUserAgent: false, playerClient: 'android',              label: 'android' },
+      { useImpersonate: false, useUserAgent: false, playerClient: 'ios',                  label: 'ios' },
+      { useImpersonate: false, useUserAgent: false, playerClient: 'tv',                   label: 'tv' },
     ];
 
     let lastError = null;
     let stdout = '';
     for (const strategy of strategies) {
       try {
+        console.log(`[subtitle/info] Running strategy "${strategy.label}"...`);
         stdout = await runYtdlp(buildArgs(strategy));
+        console.log(`[subtitle/info] ✓ Strategy "${strategy.label}" succeeded`);
         lastError = null;
         break;
       } catch (err) {
         const brief = err.message.split('\n')[0].substring(0, 120);
-        console.warn(`[subtitle/info] ✗ Strategy "${strategy.playerClient}" failed: ${brief}`);
+        console.warn(`[subtitle/info] ✗ Strategy "${strategy.label}" failed: ${brief}`);
         lastError = err;
         // Wait 2 seconds before retry to prevent anti-burst blocks
         await new Promise(resolve => setTimeout(resolve, 2000));
