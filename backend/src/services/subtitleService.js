@@ -193,6 +193,29 @@ Do NOT wrap the output in markdown code blocks like \`\`\`json. Return pure JSON
 }
 
 /**
+ * Resolves the rotating proxy URL, automatically transforming HTTP to SOCKS5h
+ * to force remote DNS resolution on headless environments.
+ */
+function getProxyUrl() {
+  const rawProxy = process.env.ROTATING_PROXIES;
+  if (!rawProxy) return null;
+
+  // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
+  if (rawProxy.includes('gw.dataimpulse.com:823')) {
+    return rawProxy
+      .replace(/^http:\/\//i, 'socks5h://')
+      .replace(':823', ':824');
+  }
+
+  // If SOCKS5 is already set, upgrade it to socks5h
+  if (rawProxy.startsWith('socks5://')) {
+    return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+  }
+
+  return rawProxy;
+}
+
+/**
  * Spawns the python script and retrieves subtitles via youtube-transcript-api.
  * Falls back to translating via Gemini if required.
  *
@@ -205,11 +228,13 @@ function fetchYouTubeSubtitles(videoId, langCode) {
     console.log(`[subtitleService] Fetching transcript via InnerTube for video: ${videoId}, lang: ${langCode}`);
 
     const env = { ...process.env };
-    if (process.env.ROTATING_PROXIES) {
-      env.HTTP_PROXY = process.env.ROTATING_PROXIES;
-      env.HTTPS_PROXY = process.env.ROTATING_PROXIES;
-      env.http_proxy = process.env.ROTATING_PROXIES;
-      env.https_proxy = process.env.ROTATING_PROXIES;
+    const proxyUrl = getProxyUrl();
+    if (proxyUrl) {
+      env.ROTATING_PROXIES = proxyUrl;
+      env.HTTP_PROXY = proxyUrl;
+      env.HTTPS_PROXY = proxyUrl;
+      env.http_proxy = proxyUrl;
+      env.https_proxy = proxyUrl;
     }
 
     const proc = spawn(PYTHON_BIN, [SCRIPT_PATH, videoId, langCode], {
