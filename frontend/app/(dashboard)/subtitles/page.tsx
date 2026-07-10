@@ -538,7 +538,13 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
   );
 }
 
-function SubtitlesPageContent() {
+export function SubtitlesPageContent({
+  title = "Download YouTube & Facebook Subtitles & Captions — Free SRT, VTT & Transcript Extractor",
+  subtitle = "Paste any YouTube or Facebook URL to extract auto-generated captions, manual subtitles, and AI-translated transcripts. Download as SRT, VTT, or plain text in 157+ languages — instantly, no account needed."
+}: {
+  title?: string;
+  subtitle?: string;
+} = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialUrl = searchParams.get('url') || '';
@@ -874,11 +880,8 @@ function SubtitlesPageContent() {
           <Globe className="w-3.5 h-3.5 text-indigo-500" />
           Free Online Tool · No Sign-Up Required · 157+ Languages
         </div>
-        <h1>Download YouTube &amp; Facebook Subtitles &amp; Captions — Free SRT, VTT &amp; Transcript Extractor</h1>
-        <p className="hero-sub">
-          Paste any YouTube or Facebook URL to extract auto-generated captions, manual subtitles, and AI-translated transcripts. 
-          Download as SRT, VTT, or plain text in 157+ languages — instantly, no account needed.
-        </p>
+        <h1>{title}</h1>
+        <p className="hero-sub">{subtitle}</p>
 
         <div className="wave-wrap">
           <div className="waveform" id="wv">
@@ -1216,34 +1219,34 @@ function SubtitlesPageContent() {
       {/* Feature section */}
       <section className="section" id="formats">
         <div className="section-label">YouTube Subtitle Download Formats</div>
-        <div className="section-title">One URL. Every Subtitle Language &amp; Format You Need.</div>
+        <div className="section-title">One URL. Every Subtitle Language, Timing &amp; Dubbed Audio Track.</div>
         <p className="section-body">
-          We support all official languages, auto-generated transcripts, and auto-translations offered by YouTube and Facebook.
+          We extract official, exact subtitles with timings alongside all available language dubbed audio tracks.
         </p>
         <div className="feat-grid">
           <div className="feat-card atd-card-hover">
             <div className="feat-icon bg-indigo-50 border border-indigo-100 flex items-center justify-center">
               <FileText className="w-6 h-6 text-indigo-600" />
             </div>
-            <div className="feat-title">SRT &amp; VTT Subtitle Downloads</div>
-            <p className="feat-desc">SRT, VTT, or plain text — download auto-generated or manual subtitles in any language YouTube offers.</p>
-            <span className="feat-badge bg-indigo-50 text-indigo-600">157+ languages</span>
+            <div className="feat-title">Official YouTube Timings Included</div>
+            <p className="feat-desc">Extract official, exact YouTube subtitles as SRT, VTT, or JSON. Timings are preserved perfectly for direct import into video editors.</p>
+            <span className="feat-badge bg-indigo-50 text-indigo-600">Perfect timecodes</span>
           </div>
           <div className="feat-card atd-card-hover">
             <div className="feat-icon bg-emerald-50 border border-emerald-100 flex items-center justify-center">
               <Globe className="w-6 h-6 text-emerald-600" />
             </div>
-            <div className="feat-title">Auto-Translated Subtitles in 157+ Languages</div>
-            <p className="feat-desc">Instantly download subtitles translated into any of the 100+ supported international languages.</p>
+            <div className="feat-title">Auto-Translated in 157+ Languages</div>
+            <p className="feat-desc">Download auto-generated transcripts translated into any of the 157+ supported international languages instantly.</p>
             <span className="feat-badge bg-emerald-50 text-emerald-600">Auto translation</span>
           </div>
           <div className="feat-card atd-card-hover">
             <div className="feat-icon bg-amber-50 border border-amber-100 flex items-center justify-center">
               <Music className="w-6 h-6 text-amber-600" />
             </div>
-            <div className="feat-title">Bonus: YouTube Audio Extractor</div>
-            <p className="feat-desc">Want the audio too? You can easily toggle and download premium high-speed MP3 audio tracks.</p>
-            <span className="feat-badge bg-amber-50 text-amber-600">All-in-one</span>
+            <div className="feat-title">YouTube Dubbed Audio &amp; Voice Downloader</div>
+            <p className="feat-desc">The only tool that extracts and lets you download separate multi-language dubbed voice and audio tracks from videos.</p>
+            <span className="feat-badge bg-amber-50 text-amber-600">Multi-Audio support</span>
           </div>
           <div className="feat-card atd-card-hover">
             <div className="feat-icon bg-rose-50 border border-rose-100 flex items-center justify-center">
