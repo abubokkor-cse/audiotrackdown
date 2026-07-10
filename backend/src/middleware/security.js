@@ -41,13 +41,22 @@ function setupSecurity(app) {
   );
 
   // CORS — restrict to frontend origin
+  const productionOrigins = [config.frontendUrl];
+  if (config.frontendUrl && config.frontendUrl.startsWith('http')) {
+    if (config.frontendUrl.includes('://www.')) {
+      productionOrigins.push(config.frontendUrl.replace('://www.', '://'));
+    } else {
+      productionOrigins.push(config.frontendUrl.replace('://', '://www.'));
+    }
+  }
+
   app.use(
     cors({
       origin: config.nodeEnv === 'development'
         ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
-        : [config.frontendUrl],
+        : productionOrigins,
       methods: ['GET', 'POST'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Fingerprint', 'X-Admin-Password', 'X-Admin-2FA-Code'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Fingerprint', 'X-Admin-Password', 'X-Admin-2FA-Code', 'X-Backend-Secret'],
       credentials: true,
     })
   );
