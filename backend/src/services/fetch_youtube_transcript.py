@@ -1,5 +1,6 @@
 import sys
 import json
+import os
 from youtube_transcript_api import YouTubeTranscriptApi
 
 def format_time(seconds):
@@ -12,7 +13,7 @@ def format_time(seconds):
 def format_to_vtt(cues):
     out = "WEBVTT\n\n"
     for cue in cues:
-        # Check if the cue is a dict or an object
+        # Support both dict and object style cues
         if isinstance(cue, dict):
             start = cue.get('start', 0)
             duration = cue.get('duration', 0)
@@ -21,40 +22,57 @@ def format_to_vtt(cues):
             start = getattr(cue, 'start', 0)
             duration = getattr(cue, 'duration', 0)
             text = getattr(cue, 'text', '')
-        
+
         start_str = format_time(start)
         end_str = format_time(start + duration)
         out += f"{start_str} --> {end_str}\n{text}\n\n"
     return out.strip() + "\n"
 
-import os
+def build_api(proxy_url=None):
+    """Build YouTubeTranscriptApi instance with optional proxy support."""
+    if proxy_url:
+        try:
+            from youtube_transcript_api.proxies import GenericProxyConfig
+            return YouTubeTranscriptApi(
+                proxy_config=GenericProxyConfig(
+                    http_url=proxy_url,
+                    https_url=proxy_url,
+                )
+            )
+        except ImportError:
+            # Older version of library — fall back to instance without proxy
+            pass
+    return YouTubeTranscriptApi()
 
 def main():
     if len(sys.argv) < 3:
         print(json.dumps({"success": False, "error": "Missing video_id or target_lang"}))
         sys.exit(1)
 
-    # Resolve rotating proxy from environment
-    proxy = os.environ.get('ROTATING_PROXIES') or os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
-    proxies = None
-    if proxy:
-        proxies = {"http": proxy, "https": proxy}
+    # Resolve rotating proxy from environment variables
+    proxy_url = (
+        os.environ.get('ROTATING_PROXIES') or
+        os.environ.get('HTTP_PROXY') or
+        os.environ.get('http_proxy')
+    )
+
+    ytt_api = build_api(proxy_url)
 
     if sys.argv[1] == '--list':
         video_id = sys.argv[2]
         try:
-            list_transcripts = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
+            transcript_list = ytt_api.list(video_id)
             transcripts_data = []
-            for t in list_transcripts:
+            for t in transcript_list:
                 transcripts_data.append({
                     "language_code": t.language_code,
                     "language": t.language,
                     "is_generated": t.is_generated,
                     "is_translatable": t.is_translatable,
                     "translation_languages": [
-                        {"language_code": tl.language_code, "language": tl.language}
-                        for tl in t.translation_languages
-                    ] if t.is_translatable else []
+                        {"language_code": tl["language_code"], "language": tl["language"]}
+                        for tl in (t.translation_languages if t.is_translatable else [])
+                    ]
                 })
             print(json.dumps({
                 "success": True,
@@ -69,11 +87,11 @@ def main():
     target_lang = sys.argv[2]
 
     try:
-        list_transcripts = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
-        
-        # 1. Try to find a direct match
+        transcript_list = ytt_api.list(video_id)
+
+        # 1. Try to find a direct match for the requested language
         try:
-            transcript = list_transcripts.find_transcript([target_lang])
+            transcript = transcript_list.find_transcript([target_lang])
             cues = transcript.fetch()
             vtt_content = format_to_vtt(cues)
             print(json.dumps({
@@ -86,25 +104,25 @@ def main():
         except Exception:
             pass
 
-        # 2. Try to translate using youtube-transcript-api
+        # 2. Try native YouTube translation to the requested language
         try:
-            transcript = None
+            source_transcript = None
             try:
-                transcript = list_transcripts.find_manually_created_transcript()
+                source_transcript = transcript_list.find_manually_created_transcript()
             except Exception:
                 try:
-                    transcript = list_transcripts.find_generated_transcript()
+                    source_transcript = transcript_list.find_generated_transcript()
                 except Exception:
                     pass
-            
-            if not transcript:
-                for t in list_transcripts:
-                    transcript = t
+
+            if not source_transcript:
+                for t in transcript_list:
+                    source_transcript = t
                     break
-            
-            if transcript:
-                translated_transcript = transcript.translate(target_lang)
-                cues = translated_transcript.fetch()
+
+            if source_transcript:
+                translated = source_transcript.translate(target_lang)
+                cues = translated.fetch()
                 vtt_content = format_to_vtt(cues)
                 print(json.dumps({
                     "success": True,
@@ -116,30 +134,30 @@ def main():
         except Exception:
             pass
 
-        # 3. Fall back to returning the best original transcript
+        # 3. Fall back: return best original transcript and let Node.js/Gemini translate
         try:
-            transcript = None
+            best_transcript = None
             try:
-                transcript = list_transcripts.find_manually_created_transcript()
+                best_transcript = transcript_list.find_manually_created_transcript()
             except Exception:
                 try:
-                    transcript = list_transcripts.find_generated_transcript()
+                    best_transcript = transcript_list.find_generated_transcript()
                 except Exception:
                     pass
-            
-            if not transcript:
-                for t in list_transcripts:
-                    transcript = t
+
+            if not best_transcript:
+                for t in transcript_list:
+                    best_transcript = t
                     break
-            
-            if transcript:
-                cues = transcript.fetch()
+
+            if best_transcript:
+                cues = best_transcript.fetch()
                 vtt_content = format_to_vtt(cues)
                 print(json.dumps({
                     "success": True,
-                    "language": transcript.language_code,
+                    "language": best_transcript.language_code,
                     "is_translated": False,
-                    "original_language": transcript.language_code,
+                    "original_language": best_transcript.language_code,
                     "requires_gemini_translation": True,
                     "vtt": vtt_content
                 }))
