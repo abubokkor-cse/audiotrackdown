@@ -56,11 +56,13 @@ interface AdModalProps {
 }
 
 function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, ext, isLoading }: AdModalProps) {
-  const totalSeconds = type === 'extract' ? 0 : 6;
+  const totalSeconds = (type === 'extract' || type === 'subtitle') ? 0 : 6;
   const [seconds, setSeconds] = useState(totalSeconds);
   const [elapsed, setElapsed] = useState(0);
   const [adRotation, setAdRotation] = useState(0);
   const [guidePhase, setGuidePhase] = useState(false);
+  const [subBlobUrl, setSubBlobUrl] = useState<string | null>(null);
+  const [subFilename, setSubFilename] = useState<string>('');
   const activeAd = AD_DETAILS[type === 'subtitle' ? 'download' : type as 'extract' | 'download'];
   const router = useRouter();
 
@@ -155,12 +157,12 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
       hasOpenedRef.current = false;
       return;
     }
-    const total = type === 'extract' ? 0 : 6;
+    const total = (type === 'extract' || type === 'subtitle') ? 0 : 6;
     setSeconds(total);
     setGuidePhase(false);
     hasOpenedRef.current = false;
 
-    if (type === 'extract') {
+    if (type === 'extract' || type === 'subtitle') {
       return;
     }
 
@@ -300,6 +302,72 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     }
   }, [isOpen]);
 
+  // Pre-fetch subtitles immediately when modal opens (no 6s wait)
+  useEffect(() => {
+    if (!isOpen || type !== 'subtitle' || !downloadUrl) {
+      setSubBlobUrl(null);
+      setSubFilename('');
+      return;
+    }
+
+    let active = true;
+    setModalDownloading(true);
+    setModalDownloadError(null);
+
+    fetch(downloadUrl)
+      .then(async (res) => {
+        if (!active) return;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to prepare subtitle.');
+        }
+
+        const disposition = res.headers.get('content-disposition');
+        let filename = '';
+        if (disposition && disposition.includes('filename=')) {
+          const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = decodeURIComponent(filenameMatch[1]);
+          }
+        }
+        if (!filename) {
+          try {
+            const urlObj = new URL(downloadUrl, window.location.origin);
+            const rawFilename = urlObj.searchParams.get('filename');
+            const fmt = urlObj.searchParams.get('fmt') || 'vtt';
+            const lang = urlObj.searchParams.get('lang') || 'en';
+            if (rawFilename) {
+              const ext = fmt === 'json3' ? 'json' : fmt;
+              filename = `${rawFilename.replace(/[^a-zA-Z0-9\-_. ]/g, '_')}-${lang}.${ext}`;
+            }
+          } catch (e) {}
+        }
+        if (!filename) {
+          filename = 'subtitle.vtt';
+        }
+
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        if (active) {
+          setSubBlobUrl(blobUrl);
+          setSubFilename(filename);
+          setModalDownloading(false);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error('[sub-prefetch] failed:', err);
+          setModalDownloadError(err.message || 'Failed to prepare subtitle. Please try again.');
+          setModalDownloading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, type, downloadUrl]);
+
   if (!isOpen) return null;
 
   if (guidePhase && type === 'download') {
@@ -380,15 +448,20 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
               {type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
               Please wait <strong className="text-indigo-600 text-base">{seconds}s</strong>
             </span>
-          ) : fileError ? (
+          ) : (fileError || modalDownloadError) ? (
             <span className="text-red-600 font-semibold flex items-center gap-1">
               <AlertCircle className="w-4 h-4" />
-              {fileError}
+              {fileError || modalDownloadError}
             </span>
-          ) : isFileReady || type === 'subtitle' ? (
+          ) : (isFileReady || subBlobUrl) ? (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" />
               Your file is ready! Click below to download.
+            </span>
+          ) : type === 'subtitle' && modalDownloading ? (
+            <span className="text-indigo-600 font-semibold flex items-center gap-1.5 animate-pulse">
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
+              Preparing subtitles... please wait
             </span>
           ) : (
             <span className="text-amber-600 font-semibold flex items-center gap-1.5">
@@ -414,19 +487,33 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
 
         {isTimerDone ? (
           /* ── File ready: show download button (user must click) ── */
-          (isFileReady || type === 'subtitle') ? (
+          (isFileReady || (type === 'subtitle' && subBlobUrl)) ? (
             <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
               <button
                 disabled={modalDownloading}
                 onClick={async () => {
                   triggerSmartlinkOnce();
+                  if (type === 'subtitle') {
+                    if (subBlobUrl) {
+                      const link = document.createElement('a');
+                      link.href = subBlobUrl;
+                      link.download = subFilename || 'subtitle.vtt';
+                      link.style.display = 'none';
+                      document.body.appendChild(link);
+                      link.click();
+                      link.remove();
+                      onClose();
+                    }
+                    return;
+                  }
+
+                  // MP3 Audio download path
                   setModalDownloading(true);
                   try {
                     const fileRes = await fetch(directStreamUrl);
                     const contentType = fileRes.headers.get('content-type') || '';
 
-                    // If backend returned JSON, the file isn't ready or errored.
-                    // Don't save JSON as a file — show error instead.
+                    // If backend returned JSON for audio, it means the file is not ready or errored.
                     if (!fileRes.ok || contentType.includes('application/json')) {
                       const errData = await fileRes.json().catch(() => ({}));
                       throw new Error(errData.error || 'File not ready yet, please try again.');
@@ -436,7 +523,7 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
                     const blobUrl = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = blobUrl;
-                    link.download = '';
+                    link.download = 'audio.mp3';
                     link.style.display = 'none';
                     document.body.appendChild(link);
                     link.click();

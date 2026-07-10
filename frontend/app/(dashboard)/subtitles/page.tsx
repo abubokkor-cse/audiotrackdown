@@ -56,11 +56,24 @@ interface AdModalProps {
 }
 
 function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, ext, isLoading }: AdModalProps) {
-  const totalSeconds = type === 'extract' ? 0 : 6;
+  const totalSeconds = (type === 'extract' || type === 'subtitle') ? 0 : 6;
   const [seconds, setSeconds] = useState(totalSeconds);
   const [elapsed, setElapsed] = useState(0);
   const [adRotation, setAdRotation] = useState(0);
   const [guidePhase, setGuidePhase] = useState(false);
+  const [modalDownloading, setModalDownloading] = useState(false);
+  const [modalDownloadError, setModalDownloadError] = useState<string | null>(null);
+  const [subBlobUrl, setSubBlobUrl] = useState<string | null>(null);
+  const [subFilename, setSubFilename] = useState<string>('');
+
+  // Reset states when modal reopens
+  useEffect(() => {
+    if (!isOpen) {
+      setModalDownloading(false);
+      setModalDownloadError(null);
+    }
+  }, [isOpen]);
+
   const activeAd = AD_DETAILS[type === 'subtitle' ? 'download' : type as 'extract' | 'download'];
   const router = useRouter();
 
@@ -150,17 +163,17 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
 
   useEffect(() => {
     if (!isOpen) {
-      setSeconds(type === 'extract' ? 0 : 6);
+      setSeconds((type === 'extract' || type === 'subtitle') ? 0 : 6);
       setGuidePhase(false);
       hasOpenedRef.current = false;
       return;
     }
-    const total = type === 'extract' ? 0 : 6;
+    const total = (type === 'extract' || type === 'subtitle') ? 0 : 6;
     setSeconds(total);
     setGuidePhase(false);
     hasOpenedRef.current = false;
 
-    if (type === 'extract') {
+    if (type === 'extract' || type === 'subtitle') {
       return;
     }
 
@@ -199,6 +212,72 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
     }, 1000);
     return () => clearInterval(interval);
   }, [isOpen, type]);
+
+  // Pre-fetch subtitles immediately when modal opens (no 6s wait)
+  useEffect(() => {
+    if (!isOpen || type !== 'subtitle' || !downloadUrl) {
+      setSubBlobUrl(null);
+      setSubFilename('');
+      return;
+    }
+
+    let active = true;
+    setModalDownloading(true);
+    setModalDownloadError(null);
+
+    fetch(downloadUrl)
+      .then(async (res) => {
+        if (!active) return;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to prepare subtitle.');
+        }
+
+        const disposition = res.headers.get('content-disposition');
+        let filename = '';
+        if (disposition && disposition.includes('filename=')) {
+          const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = decodeURIComponent(filenameMatch[1]);
+          }
+        }
+        if (!filename) {
+          try {
+            const urlObj = new URL(downloadUrl, window.location.origin);
+            const rawFilename = urlObj.searchParams.get('filename');
+            const fmt = urlObj.searchParams.get('fmt') || 'vtt';
+            const lang = urlObj.searchParams.get('lang') || 'en';
+            if (rawFilename) {
+              const ext = fmt === 'json3' ? 'json' : fmt;
+              filename = `${rawFilename.replace(/[^a-zA-Z0-9\-_. ]/g, '_')}-${lang}.${ext}`;
+            }
+          } catch (e) {}
+        }
+        if (!filename) {
+          filename = 'subtitle.vtt';
+        }
+
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        if (active) {
+          setSubBlobUrl(blobUrl);
+          setSubFilename(filename);
+          setModalDownloading(false);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error('[sub-prefetch] failed:', err);
+          setModalDownloadError(err.message || 'Failed to prepare subtitle. Please try again.');
+          setModalDownloading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, type, downloadUrl]);
 
   // ── SMARTLINK DISABLED — get traffic first, monetize later ──
   // To re-enable: uncomment the code below and remove the empty function.
@@ -299,6 +378,21 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
               {type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
               Please wait <strong className="text-indigo-600 text-base">{seconds}s</strong>
             </span>
+          ) : modalDownloadError ? (
+            <span className="text-red-600 font-semibold flex items-center gap-1">
+              <AlertCircle className="w-4 h-4" />
+              {modalDownloadError}
+            </span>
+          ) : (type === 'subtitle' && subBlobUrl) ? (
+            <span className="text-emerald-600 font-semibold flex items-center gap-1">
+              <CheckCircle2 className="w-4 h-4" />
+              Your file is ready! Click below to download.
+            </span>
+          ) : type === 'subtitle' && modalDownloading ? (
+            <span className="text-indigo-600 font-semibold flex items-center gap-1.5 animate-pulse">
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
+              Preparing subtitles... please wait
+            </span>
           ) : (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" />
@@ -321,20 +415,74 @@ function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, e
           />
         </div>
 
-        {isInlineReady ? (
+        {(isMp3Ready || (type === 'subtitle' && subBlobUrl)) ? (
           <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
-            <a
-              href={directStreamUrl || '#'}
-              download
-              onClick={(e) => {
+            <button
+              disabled={modalDownloading}
+              onClick={async () => {
                 triggerSmartlinkOnce();
-                if (!directStreamUrl) e.preventDefault();
+                if (type === 'subtitle') {
+                  if (subBlobUrl) {
+                    const link = document.createElement('a');
+                    link.href = subBlobUrl;
+                    link.download = subFilename || 'subtitle.vtt';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    onClose();
+                  }
+                  return;
+                }
+
+                // MP3 Audio download path
+                setModalDownloading(true);
+                try {
+                  const fileRes = await fetch(directStreamUrl);
+                  const contentType = fileRes.headers.get('content-type') || '';
+
+                  // If backend returned JSON for audio, it means the file is not ready or errored.
+                  if (!fileRes.ok || contentType.includes('application/json')) {
+                    const errData = await fileRes.json().catch(() => ({}));
+                    throw new Error(errData.error || 'File not ready yet, please try again.');
+                  }
+
+                  const blob = await fileRes.blob();
+                  const blobUrl = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = blobUrl;
+                  link.download = 'audio.mp3';
+                  link.style.display = 'none';
+                  document.body.appendChild(link);
+                  link.click();
+                  setTimeout(() => {
+                    if (document.body.contains(link)) document.body.removeChild(link);
+                    window.URL.revokeObjectURL(blobUrl);
+                  }, 1000);
+                } catch (err: any) {
+                  console.error('[download] Manual download failed:', err);
+                  setModalDownloadError(err.message || 'Download failed. Please try again.');
+                } finally {
+                  setModalDownloading(false);
+                }
               }}
-              className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 no-underline"
+              className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-wait"
             >
-              <Download className="w-4 h-4" />
-              {downloadBtnLabel}
-            </a>
+              {modalDownloading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Preparing...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  {downloadBtnLabel}
+                </>
+              )}
+            </button>
+            {modalDownloadError && (
+              <p className="text-xs text-red-500 mt-1">{modalDownloadError}</p>
+            )}
             <p className="text-[11px] text-gray-400 mt-1">
               Tired of ads?{' '}
               <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}
