@@ -1,0 +1,15 @@
+{
+  "title": "YouTube Subtitle Downloader — Download SRT, VTT & Transcripts Free",
+  "slug": "youtube-subtitle-downloader",
+  "description": "Learn how to download YouTube subtitles and captions as SRT, VTT, or text files. Free online tool supports 157+ languages including auto-translated subtitles. No sign-up needed.",
+  "content": "<h2>Why Download YouTube Subtitles?</h2><ul><li><strong>Language learning</strong> — Study subtitle transcripts alongside video content</li><li><strong>Accessibility</strong> — Provide captions for deaf and hard-of-hearing viewers</li><li><strong>Content repurposing</strong> — Turn video transcripts into blog posts or articles</li><li><strong>Translation reference</strong> — Compare original and translated subtitles side by side</li><li><strong>Offline study</strong> — Save lecture transcripts for later review</li></ul><h2>Step 1: Copy the YouTube Video URL</h2><p>Find the YouTube video that has subtitles or captions. Copy the URL from your browser. You can check if a video has subtitles by looking for the <strong>CC</strong> button on the YouTube player.</p><h2>Step 2: Paste the URL and Switch to Subtitles</h2><p>Go to <a href=\"/\">AudioTrackDown</a>, paste the URL, and click <strong>Extract</strong>. Then switch to the <strong>Subtitles</strong> tab to see all available caption languages.</p><h2>Step 3: Choose a Subtitle Format</h2><p>AudioTrackDown supports three subtitle formats:</p><ul><li><strong>SRT (SubRip)</strong> — The most widely supported format. Works with VLC, MPC, Premiere, and almost every video player.</li><li><strong>VTT (WebVTT)</strong> — The web standard for HTML5 video. Used by YouTube, Netflix web, and online players.</li><li><strong>JSON</strong> — Structured data format with timestamps. Best for developers and programmatic processing.</li></ul><h2>Step 4: Download the Subtitle File</h2><p>Click the format button (SRT, VTT, or JSON) next to your desired language. The subtitle file will download to your device immediately.</p><h2>Auto-Translated Subtitles in 157+ Languages</h2><p>Even if a video doesn't have manual captions in your language, YouTube often provides auto-translated subtitles. AudioTrackDown detects and lists all available auto-translated tracks, so you can download subtitles in languages like Hindi, Bengali, Arabic, Japanese, Korean, Swahili, and many more.</p><h2>Frequently Asked Questions</h2><h3>Can I download subtitles from private videos?</h3><p>No — you can only download subtitles from publicly accessible YouTube videos.</p><h3>Are auto-translated subtitles accurate?</h3><p>Auto-translated subtitles use YouTube's machine translation. They're generally good for understanding the gist of content but may contain errors in technical or idiomatic language.</p><h3>Can I download Facebook video subtitles?</h3><p>Yes — AudioTrackDown also supports Facebook video URLs for subtitle extraction.</p>",
+  "tags": [
+    "YouTube Subtitles",
+    "SRT",
+    "VTT",
+    "Transcripts",
+    "Accessibility"
+  ],
+  "readingTime": 5,
+  "publishedAt": "2026-07-10T12:00:00.000Z"
+}

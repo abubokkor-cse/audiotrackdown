@@ -540,6 +540,7 @@ function HomePageContent() {
   const [adTargetTrack, setAdTargetTrack] = useState<any>(null);
   const [adDownloadUrl, setAdDownloadUrl] = useState<string>('');
   const [preparingSubtitle, setPreparingSubtitle] = useState<{ [key: string]: boolean }>({});
+  const [proPopupOpen, setProPopupOpen] = useState(false);
 
   const { data: limits } = useSWR('/api/user/limits', fetcher, {
     revalidateOnFocus: true,
@@ -849,6 +850,65 @@ function HomePageContent() {
         isLoading={loading}
       />
 
+      {/* Pro Upgrade Popup */}
+      {proPopupOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full mx-4 border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white text-center relative">
+              <button
+                onClick={() => setProPopupOpen(false)}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <Crown className="w-10 h-10 mx-auto mb-2" />
+              <h3 className="text-xl font-bold">Unlock MP3 Downloads</h3>
+              <p className="text-sm opacity-80 mt-1">Upgrade to Pro for high-quality MP3 audio</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span className="text-gray-700">MP3, M4A &amp; WebM downloads</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span className="text-gray-700">Zero ads — distraction-free</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span className="text-gray-700">Unlimited downloads in 157+ languages</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span className="text-gray-700">Priority high-speed downloads</span>
+                </div>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center">
+                <span className="text-3xl font-bold text-indigo-600">$3.99</span>
+                <span className="text-gray-400 text-sm">/month</span>
+                <p className="text-xs text-gray-400 mt-1">Cancel anytime</p>
+              </div>
+              <button
+                onClick={() => {
+                  setProPopupOpen(false);
+                  router.push('/pricing');
+                }}
+                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <Crown className="w-4 h-4" /> Get Pro Now
+              </button>
+              <button
+                onClick={() => setProPopupOpen(false)}
+                className="w-full text-gray-400 hover:text-gray-600 text-sm font-semibold py-2"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Limits & Banner Info */}
       {limits && (
         <div className="max-w-[1200px] mx-auto mt-8 mb-4 flex flex-wrap gap-4 items-center justify-between bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -1125,7 +1185,7 @@ function HomePageContent() {
                             {isMp3ProLocked ? (
                               <button
                                 className="py-1.5 px-3 flex items-center gap-1.5 text-[11px] rounded-lg shadow-sm bg-gray-200 hover:bg-indigo-600 text-gray-500 hover:text-white transition-all duration-150 cursor-pointer"
-                                onClick={() => router.push('/pricing')}
+                                onClick={() => setProPopupOpen(true)}
                                 title="Upgrade to Pro for MP3 downloads"
                               >
                                 <Crown className="w-3.5 h-3.5" /> Unlock

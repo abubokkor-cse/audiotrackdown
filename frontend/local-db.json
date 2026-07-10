@@ -488,6 +488,20 @@
       "action": "SIGN_OUT",
       "timestamp": "2026-06-30T17:24:52.817Z",
       "ipAddress": ""
+    },
+    {
+      "id": 21,
+      "userId": 2,
+      "action": "SIGN_IN",
+      "timestamp": "2026-07-10T09:58:37.946Z",
+      "ipAddress": ""
+    },
+    {
+      "id": 22,
+      "userId": 2,
+      "action": "SIGN_OUT",
+      "timestamp": "2026-07-10T09:59:02.016Z",
+      "ipAddress": ""
     }
   ]
 }
