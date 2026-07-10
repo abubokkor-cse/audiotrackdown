@@ -1,4 +1,4 @@
-'use client';
+'use client'; // trigger deploy
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
