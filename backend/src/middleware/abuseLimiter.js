@@ -36,6 +36,16 @@ async function reverseDnsWithTimeout(ip, timeoutMs = 1200) {
  * pipeline. Local development IPs are bypassed for convenience.
  */
 async function abuseLimiter(req, res, next) {
+  // Bypass checks completely in development environment
+  if (process.env.NODE_ENV !== 'production') {
+    return next();
+  }
+
+  // Bypass checks for requests originating from our Vercel serverless frontend
+  if (req.headers['x-vercel-id']) {
+    return next();
+  }
+
   const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
   const ip = rawIp.split(',')[0].trim();
   const userAgent = req.headers['user-agent'] || '';
