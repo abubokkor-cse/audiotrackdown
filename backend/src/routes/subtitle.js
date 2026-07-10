@@ -302,6 +302,9 @@ router.get('/download', abuseLimiter, async (req, res) => {
           const existing = await fs.readdir(tempDir);
           for (const f of existing) await fs.unlink(path.join(tempDir, f)).catch(() => { });
         } catch { /* ignore */ }
+
+        // Wait 2 seconds before the next strategy to bypass anti-burst bot filters
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 

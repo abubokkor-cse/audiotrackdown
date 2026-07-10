@@ -36,7 +36,8 @@ async function reverseDnsWithTimeout(ip, timeoutMs = 1200) {
  * pipeline. Local development IPs are bypassed for convenience.
  */
 async function abuseLimiter(req, res, next) {
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const ip = rawIp.split(',')[0].trim();
   const userAgent = req.headers['user-agent'] || '';
 
   // 1. User Agent Bot Protection
