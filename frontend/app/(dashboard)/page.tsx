@@ -1,5 +1,6 @@
 'use client';
 
+// Trigger Vercel rebuild to deploy frontend changes and match backend routing updates
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
