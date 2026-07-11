@@ -15,19 +15,40 @@ const abuseLimiter = require('../middleware/abuseLimiter');
  * to force remote DNS resolution on headless environments.
  */
 function getProxyUrl() {
-  const rawProxy = process.env.ROTATING_PROXIES;
+  let rawProxy = process.env.ROTATING_PROXIES;
   if (!rawProxy) return null;
 
   // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
   if (rawProxy.includes('gw.dataimpulse.com:823')) {
-    return rawProxy
+    rawProxy = rawProxy
       .replace(/^http:\/\//i, 'socks5h://')
       .replace(':823', ':824');
   }
 
   // If SOCKS5 is already set, upgrade it to socks5h
   if (rawProxy.startsWith('socks5://')) {
-    return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+    rawProxy = rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+  }
+
+  // Force proxy routing to use US IPs to prevent YouTube from returning
+  // local peered ISP GGC nodes (which time out for users on other ISPs).
+  if (rawProxy.includes('gw.dataimpulse.com')) {
+    try {
+      const parts = rawProxy.split('://');
+      if (parts.length === 2) {
+        const credentialsAndHost = parts[1].split('@');
+        if (credentialsAndHost.length === 2) {
+          const userPass = credentialsAndHost[0].split(':');
+          if (userPass.length === 2 && !userPass[0].includes('-country-')) {
+            userPass[0] = `${userPass[0]}-country-US`;
+            const newUserPass = userPass.join(':');
+            rawProxy = `${parts[0]}://${newUserPass}@${credentialsAndHost[1]}`;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[subtitle] Failed to append country targeting to proxy:', e.message);
+    }
   }
 
   return rawProxy;

@@ -193,23 +193,137 @@ Do NOT wrap the output in markdown code blocks like \`\`\`json. Return pure JSON
 }
 
 /**
+ * Format cues back to VTT subtitle format
+ */
+function formatToVtt(cues) {
+  let out = "WEBVTT\n\n";
+  for (const cue of cues) {
+    out += `${formatTime(cue.start)} --> ${formatTime(cue.end)}\n${cue.text}\n\n`;
+  }
+  return out.trim() + "\n";
+}
+
+/**
+ * Translate cues using free Google Translate API in safe batches with newline separation
+ */
+async function translateCuesWithFreeGoogle(cues, targetLanguage) {
+  if (!cues || cues.length === 0) return [];
+
+  const batches = [];
+  let currentBatch = [];
+  let currentLength = 0;
+
+  for (const cue of cues) {
+    // Escape or clean text to ensure it's a single line
+    const cleanText = cue.text.replace(/\r?\n/g, ' ').trim();
+    const lengthContribution = cleanText.length + 1; // +1 for newline character
+
+    if (currentLength + lengthContribution > 2000 && currentBatch.length > 0) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentLength = 0;
+    }
+
+    currentBatch.push({ ...cue, text: cleanText });
+    currentLength += lengthContribution;
+  }
+
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  console.log(`[subtitleService] Split transcript into ${batches.length} batches for Google Translate.`);
+
+  const translatedCues = [];
+
+  // Process batches in parallel
+  const promises = batches.map(async (batch, bIdx) => {
+    const joinedText = batch.map(c => c.text).join('\n');
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(joinedText)}`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      
+      // Google returns translation units in json[0].
+      // For a string joined by '\n', the full translated text will contain '\n'.
+      const fullTranslatedText = json[0]
+        .filter(x => Array.isArray(x) && typeof x[0] === 'string')
+        .map(x => x[0])
+        .join('');
+
+      // Split the full translated text back by newline
+      const translatedLines = fullTranslatedText.split(/\r?\n/);
+
+      batch.forEach((cue, index) => {
+        const text = translatedLines[index] ? translatedLines[index].trim() : cue.text;
+        translatedCues.push({
+          start: cue.start,
+          end: cue.end,
+          text
+        });
+      });
+
+    } catch (err) {
+      console.error(`[subtitleService] Error translating batch ${bIdx}:`, err.message);
+      // Fallback to original text if translation fails
+      batch.forEach(cue => {
+        translatedCues.push({
+          start: cue.start,
+          end: cue.end,
+          text: cue.text
+        });
+      });
+    }
+  });
+
+  await Promise.all(promises);
+
+  // Sort cues back to original temporal order (since parallel execution changes ordering)
+  translatedCues.sort((a, b) => a.start - b.start);
+  return translatedCues;
+}
+
+/**
  * Resolves the rotating proxy URL, automatically transforming HTTP to SOCKS5h
  * to force remote DNS resolution on headless environments.
  */
 function getProxyUrl() {
-  const rawProxy = process.env.ROTATING_PROXIES;
+  let rawProxy = process.env.ROTATING_PROXIES;
   if (!rawProxy) return null;
 
   // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
   if (rawProxy.includes('gw.dataimpulse.com:823')) {
-    return rawProxy
+    rawProxy = rawProxy
       .replace(/^http:\/\//i, 'socks5h://')
       .replace(':823', ':824');
   }
 
   // If SOCKS5 is already set, upgrade it to socks5h
   if (rawProxy.startsWith('socks5://')) {
-    return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+    rawProxy = rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
+  }
+
+  // Force proxy routing to use US IPs to prevent YouTube from returning
+  // local peered ISP GGC nodes (which time out for users on other ISPs).
+  if (rawProxy.includes('gw.dataimpulse.com')) {
+    try {
+      const parts = rawProxy.split('://');
+      if (parts.length === 2) {
+        const credentialsAndHost = parts[1].split('@');
+        if (credentialsAndHost.length === 2) {
+          const userPass = credentialsAndHost[0].split(':');
+          if (userPass.length === 2 && !userPass[0].includes('-country-')) {
+            userPass[0] = `${userPass[0]}-country-US`;
+            const newUserPass = userPass.join(':');
+            rawProxy = `${parts[0]}://${newUserPass}@${credentialsAndHost[1]}`;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[subtitleService] Failed to append country targeting to proxy:', e.message);
+    }
   }
 
   return rawProxy;
@@ -266,10 +380,18 @@ function fetchYouTubeSubtitles(videoId, langCode) {
         }
 
         if (result.requires_gemini_translation) {
-          // Native YouTube translation unavailable — return original transcript directly.
-          // Gemini translation removed: too costly and unreliable for production.
-          console.log(`[subtitleService] Native translation unavailable. Returning original transcript for: ${langCode}`);
-          return resolve(result.vtt);
+          console.log(`[subtitleService] Native translation unavailable. Translating via free Google Translate API for: ${langCode}`);
+          const originalCues = parseVttToCues(result.vtt);
+          translateCuesWithFreeGoogle(originalCues, langCode)
+            .then(translatedCues => {
+              const translatedVtt = formatToVtt(translatedCues);
+              resolve(translatedVtt);
+            })
+            .catch(err => {
+              console.error('[subtitleService] Translation failed, returning original:', err.message);
+              resolve(result.vtt);
+            });
+          return;
         }
 
         // Returns direct VTT from YouTube (original or translated natively)

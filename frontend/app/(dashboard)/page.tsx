@@ -1060,15 +1060,6 @@ export function HomePageContent({
               disabled={loading}
               required
             />
-            <select
-              className="type-select"
-              value={activeTool}
-              onChange={(e) => setActiveTool(e.target.value as 'audio' | 'subtitles')}
-              disabled={loading}
-            >
-              <option value="audio">🎵 Audio</option>
-              <option value="subtitles">📝 Subtitles</option>
-            </select>
             <button
               type="submit"
               className="btn-extract flex items-center justify-center gap-1.5"
@@ -1080,6 +1071,23 @@ export function HomePageContent({
           </form>
         </div>
 
+        <div className="mt-5 text-center bg-slate-50 border border-slate-100 rounded-2xl p-4 max-w-xl mx-auto flex items-center justify-between gap-4">
+          <div className="text-left">
+            <p className="font-bold text-gray-800 text-xs">Need captions or subtitle files?</p>
+            <p className="text-gray-500 text-[11px] mt-0.5">Download timing-accurate SRT, VTT, or JSON files in 157+ languages.</p>
+          </div>
+          <a
+            href="/youtube-subtitle-downloader"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push('/youtube-subtitle-downloader');
+            }}
+            className="flex-shrink-0 bg-white hover:bg-slate-50 text-indigo-600 font-bold px-3.5 py-2 rounded-xl text-xs border border-slate-200 hover:border-slate-300 transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+          >
+            Go to Subtitle Downloader →
+          </a>
+        </div>
+
         {error && (
           <div className="mt-4 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center gap-2 max-w-2xl mx-auto text-sm text-left">
             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
@@ -1088,40 +1096,14 @@ export function HomePageContent({
 
         <div className="formats">
           <span
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'audio' ? 'on' : ''}`}
-            onClick={() => setActiveTool('audio')}
+            className="chip flex items-center gap-1 on"
           >
             <Music className="w-3.5 h-3.5" /> MP3 audio
           </span>
           <span
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'audio' ? 'on' : ''}`}
-            onClick={() => setActiveTool('audio')}
+            className="chip flex items-center gap-1 on"
           >
             <Volume2 className="w-3.5 h-3.5" /> Dubbed audio
-          </span>
-          <span
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
-            onClick={() => setActiveTool('subtitles')}
-          >
-            <FileText className="w-3.5 h-3.5" /> SRT subtitles
-          </span>
-          <span
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
-            onClick={() => setActiveTool('subtitles')}
-          >
-            <FileText className="w-3.5 h-3.5" /> VTT captions
-          </span>
-          <span
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
-            onClick={() => setActiveTool('subtitles')}
-          >
-            <FileText className="w-3.5 h-3.5" /> TXT transcript
-          </span>
-          <span
-            className={`chip cursor-pointer flex items-center gap-1 ${activeTool === 'subtitles' ? 'on' : ''}`}
-            onClick={() => setActiveTool('subtitles')}
-          >
-            <Globe className="w-3.5 h-3.5" /> Auto-translated
           </span>
         </div>
 
