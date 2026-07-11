@@ -10,7 +10,7 @@ interface PageProps {
   params: Promise<{ slug: string[] }>;
 }
 
-export default function SEOToolPage({ params }: PageProps) {
+function SEOToolPageContent({ params }: PageProps) {
   const { slug } = use(params);
   const page = getSEOToolPage(slug);
 
@@ -107,5 +107,18 @@ export default function SEOToolPage({ params }: PageProps) {
         </article>
       </section>
     </div>
+  );
+}
+
+export default function SEOToolPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-4xl mx-auto px-4 py-12 flex flex-col items-center justify-center space-y-4">
+        <div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-gray-500 text-sm">Loading tool...</p>
+      </div>
+    }>
+      <SEOToolPageContent params={params} />
+    </Suspense>
   );
 }
