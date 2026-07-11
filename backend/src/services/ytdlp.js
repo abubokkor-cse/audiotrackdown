@@ -85,40 +85,19 @@ function normalizeYouTubeUrl(rawUrl) {
  * to force remote DNS resolution on headless environments.
  */
 function getProxyUrl() {
-  let rawProxy = process.env.ROTATING_PROXIES;
+  const rawProxy = process.env.ROTATING_PROXIES;
   if (!rawProxy) return null;
 
   // If it's a DataImpulse HTTP proxy, convert it to SOCKS5h to force remote DNS resolution
   if (rawProxy.includes('gw.dataimpulse.com:823')) {
-    rawProxy = rawProxy
+    return rawProxy
       .replace(/^http:\/\//i, 'socks5h://')
       .replace(':823', ':824');
   }
 
   // If SOCKS5 is already set, upgrade it to socks5h
   if (rawProxy.startsWith('socks5://')) {
-    rawProxy = rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
-  }
-
-  // Force proxy routing to use US IPs to prevent YouTube from returning
-  // local peered ISP GGC nodes (which time out for users on other ISPs).
-  if (rawProxy.includes('gw.dataimpulse.com')) {
-    try {
-      const parts = rawProxy.split('://');
-      if (parts.length === 2) {
-        const credentialsAndHost = parts[1].split('@');
-        if (credentialsAndHost.length === 2) {
-          const userPass = credentialsAndHost[0].split(':');
-          if (userPass.length === 2 && !userPass[0].includes('-country-')) {
-            userPass[0] = `${userPass[0]}-country-US`;
-            const newUserPass = userPass.join(':');
-            rawProxy = `${parts[0]}://${newUserPass}@${credentialsAndHost[1]}`;
-          }
-        }
-      }
-    } catch (e) {
-      console.error('[ytdlp] Failed to append country targeting to proxy:', e.message);
-    }
+    return rawProxy.replace(/^socks5:\/\//i, 'socks5h://');
   }
 
   return rawProxy;
@@ -390,6 +369,23 @@ function extractAudioTracks(rawUrl) {
 }
 
 /**
+ * Rewrites localized YouTube CDN hostnames to redirector.googlevideo.com
+ * and strips host parameters to let Google's global DNS handle client routing.
+ */
+function rewriteGooglevideoUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  if (!url.includes('googlevideo.com')) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.hostname = 'redirector.googlevideo.com';
+    parsed.searchParams.delete('host');
+    return parsed.toString();
+  } catch (e) {
+    return url;
+  }
+}
+
+/**
  * Process raw yt-dlp JSON into structured data
  */
 function processExtractedInfo(info) {
@@ -452,8 +448,12 @@ function processExtractedInfo(info) {
 
     // Helper: check if a format has a usable direct URL (same logic as existing Downloader)
     const BLOCKED_PROTOCOLS = ['m3u8', 'm3u8_native', 'http_dash_segments'];
-    const getDirectUrl = (f) =>
-      f.url && f.protocol && !BLOCKED_PROTOCOLS.includes(f.protocol) ? f.url : null;
+    const getDirectUrl = (f) => {
+      if (f.url && f.protocol && !BLOCKED_PROTOCOLS.includes(f.protocol)) {
+        return rewriteGooglevideoUrl(f.url);
+      }
+      return null;
+    };
 
     // Pick best high-quality and best low-quality
     const high = formats[0]; // highest bitrate
