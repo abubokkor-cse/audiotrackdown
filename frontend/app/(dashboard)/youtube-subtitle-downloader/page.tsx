@@ -59,485 +59,6 @@ function getLangFlag(code: string): string {
   return country.split('').map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join('');
 }
 
-const AD_DETAILS = {
-  extract: {
-    title: 'Play Free Strategy Games Online!',
-    desc: 'No installation required. Play instantly with other players worldwide in your browser.',
-    btn: 'Play Free Now →',
-    url: 'https://www.highratedrevenuegate.com'
-  },
-  download: {
-    title: 'Secure High-Speed VPN Protection',
-    desc: 'Protect your privacy online and browse anonymously with 100% free VPN access.',
-    btn: 'Install Free Extension →',
-    url: 'https://www.highratedrevenuegate.com'
-  }
-};
-
-interface AdModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  type: 'extract' | 'download' | 'subtitle';
-  onTimerComplete: () => void;
-  downloadUrl?: string;
-  ext?: string;
-  isLoading?: boolean;
-}
-
-function AdModal({ isOpen, onClose, title, type, onTimerComplete, downloadUrl, ext, isLoading }: AdModalProps) {
-  const totalSeconds = (type === 'extract' || type === 'subtitle') ? 0 : 6;
-  const [seconds, setSeconds] = useState(totalSeconds);
-  const [elapsed, setElapsed] = useState(0);
-  const [adRotation, setAdRotation] = useState(0);
-  const [guidePhase, setGuidePhase] = useState(false);
-  const [modalDownloading, setModalDownloading] = useState(false);
-  const [modalDownloadError, setModalDownloadError] = useState<string | null>(null);
-  const [subBlobUrl, setSubBlobUrl] = useState<string | null>(null);
-  const [subFilename, setSubFilename] = useState<string>('');
-
-  // Reset states when modal reopens
-  useEffect(() => {
-    if (!isOpen) {
-      setModalDownloading(false);
-      setModalDownloadError(null);
-    }
-  }, [isOpen]);
-
-  const activeAd = AD_DETAILS[type === 'subtitle' ? 'download' : type as 'extract' | 'download'];
-  const router = useRouter();
-
-  const bannerRef = useRef<HTMLDivElement>(null);
-  const runRef = useRef({ onTimerComplete, onClose, downloadUrl, ext });
-  runRef.current = { onTimerComplete, onClose, downloadUrl, ext };
-
-  const hasOpenedRef = useRef(false);
-
-  // Auto close extraction modal when loading completes
-  useEffect(() => {
-    if (isOpen && type === 'extract' && !isLoading) {
-      onClose();
-    }
-  }, [isOpen, type, isLoading, onClose]);
-
-  // Track elapsed seconds during extraction
-  useEffect(() => {
-    if (!isOpen || type !== 'extract') {
-      setElapsed(0);
-      return;
-    }
-    setElapsed(0);
-    const interval = setInterval(() => {
-      setElapsed((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isOpen, type]);
-
-  // Rotate 300x250 banner ad every 6 seconds inside modal to maximize CPM
-  useEffect(() => {
-    if (isOpen) {
-      setAdRotation(0);
-      const interval = setInterval(() => {
-        setAdRotation((prev) => prev + 1);
-      }, 6000);
-      return () => clearInterval(interval);
-    }
-  }, [isOpen]);
-
-  // Dynamically load Adsterra 300x250 Banner scripts inside ref container (DISABLED for now)
-  // useEffect(() => {
-  //   if (isOpen && bannerRef.current) {
-  //     bannerRef.current.innerHTML = '';
-  // 
-  //     const confScript = document.createElement('script');
-  //     confScript.innerHTML = `
-  //       atOptions = {
-  //         'key' : '2b84ee378c9cb53ae6db891eb5f00e6a',
-  //         'format' : 'iframe',
-  //         'height' : 250,
-  //         'width' : 300,
-  //         'params' : {}
-  //       };
-  //     `;
-  // 
-  //     const invokeScript = document.createElement('script');
-  //     invokeScript.src = 'https://www.highperformanceformat.com/2b84ee378c9cb53ae6db891eb5f00e6a/invoke.js';
-  //     invokeScript.async = true;
-  // 
-  //     bannerRef.current.appendChild(confScript);
-  //     bannerRef.current.appendChild(invokeScript);
-  //   }
-  // }, [isOpen, adRotation]);
-
-  const getExtractionProgressText = () => {
-    const isSubtitle = title.toLowerCase().includes('subtitle');
-    if (elapsed < 3) return '🔍 Accessing YouTube metadata...';
-    if (elapsed < 6) return '⚡ Downloading player configuration...';
-    if (elapsed < 10) return '🛡️ Solving YouTube security challenges...';
-    if (isSubtitle) {
-      if (elapsed < 14) return '🎵 Detecting dubbed languages & caption tracks...';
-      return '✨ Formatting subtitle tracks & preparing results...';
-    } else {
-      if (elapsed < 14) return '🎵 Detecting dubbed audio tracks & languages...';
-      return '✨ Formatting audio formats & preparing results...';
-    }
-  };
-
-  const getProgressWidth = () => {
-    if (type === 'extract') {
-      const calculated = 5 + elapsed * 6;
-      return `${Math.min(calculated, 95)}%`;
-    }
-    return `${((totalSeconds - seconds) / totalSeconds) * 100}%`;
-  };
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSeconds((type === 'extract' || type === 'subtitle') ? 0 : 6);
-      setGuidePhase(false);
-      hasOpenedRef.current = false;
-      return;
-    }
-    const total = (type === 'extract' || type === 'subtitle') ? 0 : 6;
-    setSeconds(total);
-    setGuidePhase(false);
-    hasOpenedRef.current = false;
-
-    if (type === 'extract' || type === 'subtitle') {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-
-          const checkReadyAndOpen = () => {
-            if (hasOpenedRef.current) return;
-            const currentUrl = runRef.current.downloadUrl;
-            if (currentUrl) {
-              hasOpenedRef.current = true;
-              window.open(currentUrl, '_blank');
-              runRef.current.onClose();
-            } else {
-              setTimeout(checkReadyAndOpen, 100);
-            }
-          };
-
-          if (type === 'download') {
-            if (runRef.current.ext === 'mp3') {
-              // MP3: stay in same card — download button will appear inline
-            } else {
-              setGuidePhase(true);
-            }
-          } else if (type === 'subtitle') {
-            // Subtitle: stay in same card — download button will appear inline
-          } else {
-            checkReadyAndOpen();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isOpen, type]);
-
-  // Pre-fetch subtitles immediately when modal opens (no 6s wait)
-  useEffect(() => {
-    if (!isOpen || type !== 'subtitle' || !downloadUrl) {
-      setSubBlobUrl(null);
-      setSubFilename('');
-      return;
-    }
-
-    let active = true;
-    setModalDownloading(true);
-    setModalDownloadError(null);
-
-    fetch(downloadUrl)
-      .then(async (res) => {
-        if (!active) return;
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to prepare subtitle.');
-        }
-
-        const disposition = res.headers.get('content-disposition');
-        let filename = '';
-        if (disposition && disposition.includes('filename=')) {
-          const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = decodeURIComponent(filenameMatch[1]);
-          }
-        }
-        if (!filename) {
-          try {
-            const urlObj = new URL(downloadUrl, window.location.origin);
-            const rawFilename = urlObj.searchParams.get('filename');
-            const fmt = urlObj.searchParams.get('fmt') || 'vtt';
-            const lang = urlObj.searchParams.get('lang') || 'en';
-            if (rawFilename) {
-              const ext = fmt === 'json3' ? 'json' : fmt;
-              filename = `${rawFilename.replace(/[^a-zA-Z0-9\-_. ]/g, '_')}-${lang}.${ext}`;
-            }
-          } catch (e) {}
-        }
-        if (!filename) {
-          filename = 'subtitle.vtt';
-        }
-
-        const blob = await res.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-
-        if (active) {
-          setSubBlobUrl(blobUrl);
-          setSubFilename(filename);
-          setModalDownloading(false);
-        }
-      })
-      .catch((err) => {
-        if (active) {
-          console.error('[sub-prefetch] failed:', err);
-          setModalDownloadError(err.message || 'Failed to prepare subtitle. Please try again.');
-          setModalDownloading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isOpen, type, downloadUrl]);
-
-  // ── SMARTLINK DISABLED — get traffic first, monetize later ──
-  // To re-enable: uncomment the code below and remove the empty function.
-  const triggerSmartlinkOnce = () => {};
-  // const triggerSmartlinkOnce = () => {
-  //   const smartlinkOpened = sessionStorage.getItem('atd_smartlink_opened');
-  //   if (!smartlinkOpened) {
-  //     sessionStorage.setItem('atd_smartlink_opened', 'true');
-  //     window.open('https://degreeeruptionpredator.com/ahijxi03?key=f6dd3af4cba03cac352ac9823d404ac6', '_blank');
-  //   }
-  // };
-
-  if (!isOpen) return null;
-
-  if (guidePhase && type === 'download') {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="bg-white rounded-3xl max-w-2xl w-full mx-auto border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-4 text-white text-center">
-            <p className="text-xs font-bold uppercase tracking-widest opacity-75 mb-1">Your file is ready</p>
-            <h3 className="text-xl font-bold flex items-center justify-center gap-2">
-              <Download className="w-5 h-5" /> How to Download Your File
-            </h3>
-            <p className="text-sm opacity-80 mt-1">Follow these quick steps to save your audio file</p>
-          </div>
-          <div className="p-4 bg-slate-50 border-b border-slate-100">
-            <img
-              src="/how-to-download.png"
-              alt="How to download guide"
-              className="w-full rounded-xl border border-slate-200 shadow-sm object-contain max-h-[380px]"
-            />
-          </div>
-          <div className="px-6 py-5 flex flex-col items-center gap-3 text-center">
-            <button
-              onClick={() => {
-                onClose();
-                triggerSmartlinkOnce();
-                try { if (downloadUrl) window.open(downloadUrl, '_blank'); } catch (e) { console.error(e); }
-              }}
-              className="w-full max-w-sm bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2"
-            >
-              <Download className="w-5 h-5" />
-              Download Audio File
-            </button>
-            <p className="text-[11px] text-gray-400">A new tab will open. If nothing happens, check your pop-up blocker.</p>
-            <p className="text-[11px] text-gray-400 mt-1">
-              Tired of ads?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }} className="text-indigo-600 font-bold hover:underline">
-                Get Ad-Free Pro for $3.99/mo →
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const isMp3Ready = ext === 'mp3' && type === 'download' && seconds === 0;
-  const isSubReady = type === 'subtitle' && seconds === 0;
-  const isInlineReady = isMp3Ready || isSubReady;
-
-  let directStreamUrl = '';
-  
-  if (isMp3Ready && downloadUrl) {
-    try {
-      const u = new URL(downloadUrl, window.location.origin);
-      const dlId = u.searchParams.get('id');
-      if (dlId) directStreamUrl = `/api/download/stream/${dlId}`;
-    } catch {}
-  } else if (isSubReady) {
-    directStreamUrl = downloadUrl || '';
-  }
-
-  const downloadBtnLabel = type === 'subtitle' ? 'Download Subtitles' : 'Download MP3';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 border border-slate-200 shadow-2xl relative animate-in fade-in zoom-in duration-200 text-center">
-        {isInlineReady && (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-
-        <h3 className="text-xl font-bold text-gray-900 mb-2 font-sans">{title}</h3>
-        <div className="text-sm text-gray-500 mb-6 flex items-center justify-center gap-1.5">
-          {type === 'extract' ? (
-            <span className="text-indigo-600 font-semibold flex items-center gap-1.5 animate-pulse">
-              <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
-              {getExtractionProgressText()}
-            </span>
-          ) : seconds > 0 ? (
-            <span>
-              {type === 'subtitle' ? 'Preparing subtitles... ' : 'Preparing download... '}
-              Please wait <strong className="text-indigo-600 text-base">{seconds}s</strong>
-            </span>
-          ) : modalDownloadError ? (
-            <span className="text-red-600 font-semibold flex items-center gap-1">
-              <AlertCircle className="w-4 h-4" />
-              {modalDownloadError}
-            </span>
-          ) : (type === 'subtitle' && subBlobUrl) ? (
-            <span className="text-emerald-600 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" />
-              Your file is ready! Click below to download.
-            </span>
-          ) : type === 'subtitle' && modalDownloading ? (
-            <span className="text-indigo-600 font-semibold flex items-center gap-1.5 animate-pulse">
-              <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
-              Preparing subtitles... please wait
-            </span>
-          ) : (
-            <span className="text-emerald-600 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" />
-              Your file is ready!
-            </span>
-          )}
-        </div>
-
-        {/* Ad Slot */}
-        <div className="bg-slate-50 rounded-2xl min-h-[250px] flex flex-col items-center justify-center relative overflow-hidden mb-6">
-          <div className="absolute top-2 left-2 bg-slate-200/80 text-slate-600 font-bold px-2 py-0.5 rounded text-[8px] uppercase tracking-wide z-10">Sponsored</div>
-          <div ref={bannerRef} className="w-[300px] h-[250px] flex items-center justify-center bg-slate-100/50" />
-        </div>
-
-        {/* Progress bar */}
-        <div className="w-full bg-slate-100 h-1.5 rounded-full mb-4 overflow-hidden">
-          <div
-            className="bg-indigo-600 h-full rounded-full transition-all duration-1000 ease-linear"
-            style={{ width: getProgressWidth() }}
-          />
-        </div>
-
-        {(isMp3Ready || (type === 'subtitle' && subBlobUrl)) ? (
-          <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
-            <button
-              disabled={modalDownloading}
-              onClick={async () => {
-                triggerSmartlinkOnce();
-                if (type === 'subtitle') {
-                  if (subBlobUrl) {
-                    const link = document.createElement('a');
-                    link.href = subBlobUrl;
-                    link.download = subFilename || 'subtitle.vtt';
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                    onClose();
-                  }
-                  return;
-                }
-
-                // MP3 Audio download path
-                setModalDownloading(true);
-                try {
-                  const fileRes = await fetch(directStreamUrl);
-                  const contentType = fileRes.headers.get('content-type') || '';
-
-                  // If backend returned JSON for audio, it means the file is not ready or errored.
-                  if (!fileRes.ok || contentType.includes('application/json')) {
-                    const errData = await fileRes.json().catch(() => ({}));
-                    throw new Error(errData.error || 'File not ready yet, please try again.');
-                  }
-
-                  const blob = await fileRes.blob();
-                  const blobUrl = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = blobUrl;
-                  link.download = 'audio.mp3';
-                  link.style.display = 'none';
-                  document.body.appendChild(link);
-                  link.click();
-                  setTimeout(() => {
-                    if (document.body.contains(link)) document.body.removeChild(link);
-                    window.URL.revokeObjectURL(blobUrl);
-                  }, 1000);
-                } catch (err: any) {
-                  console.error('[download] Manual download failed:', err);
-                  setModalDownloadError(err.message || 'Download failed. Please try again.');
-                } finally {
-                  setModalDownloading(false);
-                }
-              }}
-              className="w-full max-w-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg transition-all text-base flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-wait"
-            >
-              {modalDownloading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Preparing...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  {downloadBtnLabel}
-                </>
-              )}
-            </button>
-            {modalDownloadError && (
-              <p className="text-xs text-red-500 mt-1">{modalDownloadError}</p>
-            )}
-            <p className="text-[11px] text-gray-400 mt-1">
-              Tired of ads?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}
-                className="text-indigo-600 font-bold hover:underline">
-                Get Ad-Free Pro for $3.99/mo →
-              </a>
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xs text-gray-400">{seconds > 0 ? `Please wait ${seconds}s…` : 'Almost done...'}</p>
-            <p className="text-[11px] text-gray-400">
-              Tired of ads?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); onClose(); router.push('/pricing'); }}
-                className="text-indigo-600 font-bold hover:underline">
-                Get Ad-Free Pro with unlimited downloads for $3.99/mo →
-              </a>
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function SubtitlesPageContent({
   title = "Download YouTube & Facebook Subtitles & Captions — Free SRT, VTT & Transcript Extractor",
   subtitle = "Paste any YouTube or Facebook URL to extract auto-generated captions, manual subtitles, and AI-translated transcripts. Download as SRT, VTT, or plain text in 157+ languages — instantly, no account needed."
@@ -556,10 +77,7 @@ export function SubtitlesPageContent({
   const [activeTool, setActiveTool] = useState<'audio' | 'subtitles'>('subtitles');
   const [subSearch, setSubSearch] = useState('');
 
-  const [adModalOpen, setAdModalOpen] = useState(false);
-  const [adModalType, setAdModalType] = useState<'extract' | 'download' | 'subtitle'>('extract');
-  const [adTargetTrack, setAdTargetTrack] = useState<any>(null);
-  const [adDownloadUrl, setAdDownloadUrl] = useState<string>('');
+  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
   const [preparingSubtitle, setPreparingSubtitle] = useState<{ [key: string]: boolean }>({});
 
   const { data: limits } = useSWR('/api/user/limits', fetcher, {
@@ -625,33 +143,31 @@ export function SubtitlesPageContent({
 
   const onExtractSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFree) {
-      setAdModalType('extract');
-      setAdModalOpen(true);
-      handleExtract();
-    } else {
-      handleExtract();
-    }
+    handleExtract();
   };
 
   const handleDownloadClick = async (track: any) => {
     if (!track) return;
-    if (isFree) {
-      await prepareAndShowAdForDownload(track);
-    } else {
-      executeDownload(track);
-    }
+    executeDownload(track);
   };
 
   const executeDownload = async (track: any) => {
     setError('');
     const { directUrl, downloadType, formatId, langName, ext } = track;
+    const formatKey = `${formatId}-${ext}`;
 
     if (downloadType === 'direct' && directUrl) {
-      window.open(directUrl, '_blank');
+      const link = document.createElement('a');
+      link.href = directUrl;
+      link.download = '';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 500);
       return;
     }
 
+    setDownloadingFormat(formatKey);
     try {
       const res = await fetch('/api/download/prepare', {
         method: 'POST',
@@ -668,46 +184,42 @@ export function SubtitlesPageContent({
       if (!res.ok || !data.success) throw new Error(data.error || 'Download preparation failed');
 
       mutate('/api/user/limits');
-      const finalUrl = `${window.location.origin}/download?id=${data.downloadId}&filename=${encodeURIComponent(data.filename)}`;
-      window.open(finalUrl, '_blank');
+
+      const streamUrl = `/api/download/stream/${data.downloadId}`;
+      const statusUrl = `/api/download/status/${data.downloadId}`;
+
+      let ready = false;
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          const sRes = await fetch(statusUrl);
+          const sData = await sRes.json();
+          if (sData.status === 'ready') { ready = true; break; }
+          if (sData.status === 'error') throw new Error(sData.error || 'Transcoding failed');
+        } catch (e) {
+          throw e;
+        }
+      }
+      if (!ready) throw new Error('Download timed out. Please try again.');
+
+      const fileRes = await fetch(streamUrl);
+      if (!fileRes.ok) throw new Error('Failed to download audio file');
+      const blob = await fileRes.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = data.filename || 'audio.mp3';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 1000);
     } catch (err: any) {
       setError(err.message);
-    }
-  };
-
-  const prepareAndShowAdForDownload = (track: any) => {
-    setError('');
-    const { directUrl, downloadType, formatId, langName, ext } = track;
-
-    setAdTargetTrack(track);
-    setAdModalType('download');
-    setAdModalOpen(true);
-    setAdDownloadUrl('');
-
-    if (downloadType === 'direct' && directUrl) {
-      setAdDownloadUrl(directUrl);
-    } else {
-      fetch('/api/download/prepare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: url.trim() || initialUrl,
-          formatId,
-          langName,
-          targetExt: ext,
-        }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok || !data.success) throw new Error(data.error || 'Download preparation failed');
-          mutate('/api/user/limits');
-          const resolvedUrl = `${window.location.origin}/download?id=${data.downloadId}&filename=${encodeURIComponent(data.filename)}`;
-          setAdDownloadUrl(resolvedUrl);
-        })
-        .catch((err) => {
-          setError(err.message);
-          setAdModalOpen(false);
-        });
+    } finally {
+      setDownloadingFormat(null);
     }
   };
 
@@ -715,69 +227,54 @@ export function SubtitlesPageContent({
     const key = `${langCode}-${fmt}`;
     if (preparingSubtitle[key]) return;
 
-    const sub = result.subtitles[langCode];
-    const videoId = result.video.id;
+    const sub = result?.subtitles?.[langCode];
+    const videoId = result?.video?.id;
     const isYouTube = url.includes('youtube') || url.includes('youtu.be') || initialUrl.includes('youtube') || initialUrl.includes('youtu.be');
     
     let targetUrl = '';
     if (isYouTube) {
       targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
     } else {
-      const fmtObj = sub.formats?.find((f: any) => 
+      const fmtObj = sub?.formats?.find((f: any) => 
         (fmt === 'vtt' && f.ext === 'vtt') ||
         (fmt === 'srt' && (f.ext === 'srt' || f.ext === 'srv1')) ||
         (fmt === 'json3' && (f.ext === 'json3' || f.ext === 'json'))
       );
-      targetUrl = fmtObj?.url || sub.formats?.[0]?.url || '';
+      targetUrl = fmtObj?.url || sub?.formats?.[0]?.url || '';
     }
     
-    const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result.video.title)}`;
+    const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(targetUrl)}&lang=${langCode}&fmt=${fmt}&filename=${encodeURIComponent(result?.video?.title || 'subtitle')}`;
     
-    if (isFree) {
-      setAdDownloadUrl(downloadUrl);
-      setAdTargetTrack({ downloadType: 'direct', directUrl: downloadUrl });
-      setAdModalType('subtitle');
-      setAdModalOpen(true);
-    } else {
-      setPreparingSubtitle(prev => ({ ...prev, [key]: true }));
-      setError('');
-      try {
-        const res = await fetch(downloadUrl);
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Failed to download subtitle');
-        }
-        const blob = await res.blob();
-        const disposition = res.headers.get('content-disposition');
-        let filename = `${result.video.title || 'subtitle'}-${langCode}.${fmt === 'json3' ? 'json' : fmt}`;
-        if (disposition && disposition.includes('filename=')) {
-          const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = decodeURIComponent(filenameMatch[1]);
-          }
-        }
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(blobUrl);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setPreparingSubtitle(prev => ({ ...prev, [key]: false }));
+    setPreparingSubtitle(prev => ({ ...prev, [key]: true }));
+    setError('');
+    try {
+      const res = await fetch(downloadUrl);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to download subtitle');
       }
+      const blob = await res.blob();
+      const disposition = res.headers.get('content-disposition');
+      let filename = `${result?.video?.title || 'subtitle'}-${langCode}.${fmt === 'json3' ? 'json' : fmt}`;
+      if (disposition && disposition.includes('filename=')) {
+        const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = decodeURIComponent(filenameMatch[1]);
+        }
+      }
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPreparingSubtitle(prev => ({ ...prev, [key]: false }));
     }
-  };
-
-  const handleAdTimerComplete = () => {};
-
-  const handleAdModalClose = () => {
-    setAdModalOpen(false);
-    setAdTargetTrack(null);
-    setAdDownloadUrl('');
   };
 
   const formatFileSize = (bytes: number) => {
@@ -831,48 +328,6 @@ export function SubtitlesPageContent({
 
   return (
     <div className="w-full">
-      <AdModal
-        isOpen={adModalOpen}
-        onClose={handleAdModalClose}
-        title={
-          adModalType === 'extract'
-            ? activeTool === 'audio'
-              ? '🔍 Fetching Audio...'
-              : '🔍 Fetching Subtitles...'
-            : adModalType === 'subtitle'
-            ? '📥 Preparing Subtitles...'
-            : '📥 Preparing High-Speed Stream...'
-        }
-        type={adModalType}
-        onTimerComplete={handleAdTimerComplete}
-        downloadUrl={adDownloadUrl}
-        ext={adTargetTrack?.ext}
-        isLoading={loading}
-      />
-
-      {/* Limits & Banner Info */}
-      {limits && (
-        <div className="max-w-[1200px] mx-auto mt-8 mb-4 flex flex-wrap gap-4 items-center justify-between bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              Your Current Plan: <span className="text-indigo-600 font-extrabold">{limits.planName}</span>
-            </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {limits.isPro 
-                ? 'Enjoy unlimited high-speed downloads with zero ads.' 
-                : 'You are on the Free Plan. Enjoy unlimited downloads with ad-supported viewing.'}
-            </p>
-          </div>
-          {!limits.isPro && (
-            <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md font-semibold flex items-center gap-1.5 transition-all atd-btn-lift"
-              onClick={() => router.push('/pricing')}
-            >
-              <Crown className="w-4 h-4" /> Upgrade to Pro
-            </Button>
-          )}
-        </div>
-      )}
 
       {/* Hero section */}
       <section className="hero">
@@ -923,22 +378,19 @@ export function SubtitlesPageContent({
           </form>
         </div>
 
-        <div className="mt-5 text-center bg-slate-50 border border-slate-100 rounded-2xl p-4 max-w-xl mx-auto flex items-center justify-between gap-4">
-          <div className="text-left">
-            <p className="font-bold text-gray-800 text-xs">Need MP3 audio tracks or dubbed voices?</p>
-            <p className="text-gray-500 text-[11px] mt-0.5">Extract original audio files and alternative multi-language dubs.</p>
-          </div>
+        <p className="mt-3 text-xs text-gray-400">
+          Need MP3 audio tracks or dubbed voices?{' '}
           <a
             href="/"
             onClick={(e) => {
               e.preventDefault();
               router.push('/');
             }}
-            className="flex-shrink-0 bg-white hover:bg-slate-50 text-indigo-600 font-bold px-3.5 py-2 rounded-xl text-xs border border-slate-200 hover:border-slate-300 transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+            className="text-indigo-600 font-bold hover:underline"
           >
-            Go to Audio Extractor →
+            Download MP3 &amp; M4A audio →
           </a>
-        </div>
+        </p>
 
         {error && (
           <div className="mt-4 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center gap-2 max-w-2xl mx-auto text-sm text-left">
@@ -1005,26 +457,6 @@ export function SubtitlesPageContent({
         </div>
       </div>
 
-      {limits && !limits.isPro && (
-        <div className="max-w-[1200px] mx-auto my-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-6 text-center text-xs text-gray-400 relative overflow-hidden">
-          <div className="absolute top-2 left-2 bg-gray-200 text-gray-500 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide">
-            Advertisement
-          </div>
-          <div className="flex flex-col items-center justify-center min-h-[80px]">
-            <p className="font-bold text-gray-700 text-sm flex items-center gap-1">
-              <Zap className="w-4 h-4 text-indigo-600" /> Convert YouTube Audio to High-Quality MP3 Free!
-            </p>
-            <p className="text-gray-500 mt-1 max-w-md">Upgrade to Pro for $3.99/mo to remove advertisements and enjoy unlimited instant downloads.</p>
-            <Button
-              variant="link"
-              className="text-indigo-600 hover:text-indigo-700 font-bold mt-2 flex items-center gap-1"
-              onClick={() => router.push('/pricing')}
-            >
-              <Crown className="w-3.5 h-3.5" /> Get Ad-Free Pro Now
-            </Button>
-          </div>
-        </div>
-      )}
 
       {loading && (
         <div className="max-w-[1200px] mx-auto my-6 space-y-6">
@@ -1065,15 +497,72 @@ export function SubtitlesPageContent({
                     <Eye className="w-3.5 h-3.5 text-gray-400" /> {(result.video.viewCount / 1000000).toFixed(1)}M views
                   </span>
                 )}
+                {subtitleLanguages && subtitleLanguages.length > 0 && (
+                  <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1.5 rounded-full font-medium flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5 text-indigo-600" /> {subtitleLanguages.length} Subtitles
+                  </span>
+                )}
+                {result.audioTracks && result.audioTracks.length > 0 && (
+                  <span className="bg-slate-100 text-gray-700 px-3 py-1.5 rounded-full font-medium flex items-center gap-1">
+                    <Music className="w-3.5 h-3.5 text-gray-500" /> {result.audioTracks.length} {result.audioTracks.length === 1 ? 'Audio Track' : 'Audio Tracks'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Tool switch tabs */}
+          {((result.audioTracks && result.audioTracks.length > 0) || subtitleLanguages.length > 0) && (
+            <div className="flex border-b border-gray-200 gap-2 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setActiveTool('subtitles')}
+                className={`pb-3 px-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                  activeTool === 'subtitles'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Subtitles</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                  activeTool === 'subtitles'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {subtitleLanguages.length}
+                </span>
+              </button>
+
+              {result.audioTracks && result.audioTracks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTool('audio')}
+                  className={`pb-3 px-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                    activeTool === 'audio'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Music className="w-4 h-4" />
+                  <span>Audio Tracks</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                    activeTool === 'audio'
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {result.audioTracks.length}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
 
           {activeTool === 'subtitles' && (
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-indigo-600" /> Available Subtitle Languages
-                <span className="ml-1 bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-0.5 rounded-full border border-indigo-100">
+                <span className="ml-1 bg-indigo-50 text-indigo-600 text-xs font-bold px-2.5 py-0.5 rounded-full border border-indigo-100">
                   {subtitleLanguages.length}
                 </span>
               </h3>
@@ -1167,6 +656,9 @@ export function SubtitlesPageContent({
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Music className="w-5 h-5 text-indigo-600" /> Available Audio Tracks
+                <span className="ml-1 bg-indigo-50 text-indigo-600 text-xs font-bold px-2.5 py-0.5 rounded-full border border-indigo-100">
+                  {result.audioTracks?.length || 0}
+                </span>
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {result.audioTracks.map((track: any, idx: number) => (
@@ -1197,10 +689,19 @@ export function SubtitlesPageContent({
                             <span className="text-gray-400 ml-1.5">({q.ext.toUpperCase()} · {formatFileSize(q.filesize)})</span>
                           </div>
                           <button
-                            className="btn-pro py-1.5 px-3 flex items-center gap-1.5 text-[11px] rounded-lg shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-150 atd-btn-lift cursor-pointer"
+                            disabled={!!downloadingFormat}
+                            className="btn-pro py-1.5 px-3 flex items-center gap-1.5 text-[11px] rounded-lg shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-150 atd-btn-lift cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             onClick={() => handleDownloadClick({ ...track, formatId: q.formatId, ext: q.ext, directUrl: q.directUrl, downloadType: q.downloadType })}
                           >
-                            <Download className="w-3.5 h-3.5" /> Download
+                            {downloadingFormat === `${q.formatId}-${q.ext}` ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Preparing...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-3.5 h-3.5" /> Download
+                              </>
+                            )}
                           </button>
                         </div>
                       ))}

@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import { getUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
-import AdProvider from '@/components/AdProvider';
+
 
 export const metadata: Metadata = {
   title: 'AudioTrackDown — Free YouTube & Facebook Audio Extractor & Subtitle Downloader',
@@ -98,7 +98,6 @@ export default function RootLayout({
             }),
           }}
         />
-        <AdProvider />
         <SWRConfig
           value={{
             fallback: {

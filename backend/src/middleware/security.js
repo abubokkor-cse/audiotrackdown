@@ -18,21 +18,12 @@ function setupSecurity(app) {
           scriptSrc: [
             "'self'",
             "'unsafe-inline'",
-            // Ad network domains
-            'https://contextual.media.net',
-            'https://www.nitropay.com',
-            'https://cdn.nitropay.com',
-            'https://www.ezojs.com',
           ],
           styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
           connectSrc: ["'self'", config.frontendUrl, 'https://i.ytimg.com'],
-          frameSrc: [
-            "'self'",
-            'https://contextual.media.net',
-            'https://www.nitropay.com',
-          ],
+          frameSrc: ["'self'"],
           mediaSrc: ["'self'", 'blob:'],
         },
       },

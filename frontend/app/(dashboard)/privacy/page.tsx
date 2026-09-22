@@ -39,10 +39,10 @@ export default function PrivacyPage() {
 
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-slate-800 font-sans" style={{ fontFamily: "var(--font-space-grotesk, 'Space Grotesk', sans-serif)" }}>
-              4. Advertising (Adsterra)
+              4. Ad-Free Experience
             </h2>
             <p>
-              We display ads to monetize our Free tier. Third-party ad networks, such as Adsterra, may use cookies or web beacons to gather non-personally identifiable information (such as your IP address, device type, or browser agent) to serve targeted advertisements based on your location and preferences. Paid PRO users do not receive any third-party ads.
+              AudioTrackDown provides an ad-free service. We do not inject intrusive third-party display banner ads, popups, or redirects. Your downloads and extractions occur directly without third-party advertising tracker interference.
             </p>
           </section>
 

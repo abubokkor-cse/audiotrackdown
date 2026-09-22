@@ -522,7 +522,7 @@ function DashboardContent() {
                       <div className="space-y-6 animate-in fade-in duration-300">
                         <div className="space-y-2.5">
                           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            Available audio tracks
+                            Available audio tracks ({result.audioTracks.length})
                             <div className="flex-1 h-px bg-slate-100" />
                           </div>
                           <div className="grid gap-2.5 max-h-56 overflow-y-auto pr-1">
@@ -897,7 +897,7 @@ function DashboardContent() {
                         <div className="text-[11px] text-gray-400 space-y-1.5 mt-4">
                           <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Unlimited downloads (MP3, M4A, WebM, SRT, VTT, JSON)</div>
                           <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Standard processing speed</div>
-                          <div className="flex items-center gap-1.5"><X className="w-3.5 h-3.5 text-red-400" /> Adsterra ads and redirects active</div>
+                          <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> 100% Ad-Free (Zero ads or redirects)</div>
                           <div className="flex items-center gap-1.5"><X className="w-3.5 h-3.5 text-red-400" /> Priority proxy high-speed processing</div>
                         </div>
                       </div>

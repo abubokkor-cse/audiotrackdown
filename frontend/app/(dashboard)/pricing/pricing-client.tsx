@@ -91,9 +91,8 @@ export default function PricingClient({ user }: PricingClientProps) {
       features: [
         { text: 'Unlimited downloads (MP3, M4A, WebM, SRT, VTT, JSON)', icon: Check, forbidden: false },
         { text: 'Extract from YouTube & Facebook', icon: Check, forbidden: false },
-        { text: 'Contains advertisements (popups/redirects)', icon: Check, forbidden: false },
+        { text: '100% Ad-Free (Zero ads or popups)', icon: Check, forbidden: false },
         { text: 'Standard stream download speed', icon: Check, forbidden: false },
-        { text: 'Zero advertisements (100% ad-free)', icon: X, forbidden: true },
         { text: 'Priority proxy high-speed downloading', icon: X, forbidden: true },
         { text: 'Dedicated 24/7 priority email support', icon: X, forbidden: true },
       ],
